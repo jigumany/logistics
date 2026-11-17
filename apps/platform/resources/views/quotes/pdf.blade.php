@@ -1,0 +1,26 @@
+<!doctype html><html lang="en"><head><meta charset="UTF-8"><style>
+@page { margin: 34px 38px 55px; } body { font-family: DejaVu Sans, sans-serif; font-size: 10px; color: #263b3b; } h1 { color: #115e59; font-size: 25px; margin: 0 0 8px; } h2 { font-size: 14px; margin: 16px 0 8px; } .muted { color: #64748b; } .banner { padding: 14px; background: #e8f4ef; margin: 14px 0; } .logo { max-height: 55px; max-width: 180px; float:right; } table { width:100%; border-collapse:collapse; } thead { display:table-header-group; } th,td { text-align:left; border-bottom:1px solid #dce5e2; padding:7px 5px; } th { background:#f3f7f5; } .money { text-align:right; white-space:nowrap; } .total { font-size:15px; font-weight:bold; color:#115e59; } footer { position:fixed; bottom:-32px; font-size:8px; color:#64748b; } .terms { white-space:pre-wrap; } tr { page-break-inside:avoid; } h2 { page-break-after:avoid; } .legal { page-break-inside:avoid; }
+</style></head><body>
+@php
+$money = fn($amount) => ($amount < 0 ? '-' : '').number_format(intdiv(abs((int)$amount),100),0,'.',',').'.'.str_pad((string)(abs((int)$amount)%100),2,'0',STR_PAD_LEFT);
+$contact = $revision->contact_snapshot;
+$lineMetadata = $lineMetadata ?? [];
+$activeReviewReasons = array_filter($revision->review_reasons, fn ($reason) => empty($reason['resolved']));
+@endphp
+@if($logo)<img class="logo" src="{{ $logo }}" alt="Company logo">@endif
+<h1>{{ $settings->display_name }}</h1><p class="muted">@if($settings->registered_name){{ $settings->registered_name }}<br>@endif @if($settings->operating_address){{ $settings->operating_address }}<br>@endif{{ $settings->contact_email }} {{ $settings->contact_phone }}@if($settings->vat_number)<br>Tax registration: {{ $settings->vat_number }}@endif</p>
+<h2>{{ $revision->approval === 'pending' ? 'Quotation request / estimate under review' : 'Transport quotation' }}</h2>
+<p><strong>{{ $quote->reference }}</strong> · Revision {{ $revision->number }}<br>Valid until {{ $revision->expires_at->timezone($settings->timezone)->format('d M Y H:i T') }}</p>
+<div class="banner">{{ $revision->approval === 'pending' ? 'This request requires review. Any displayed amount is indicative and cannot yet be accepted.' : 'Please review the scope, assumptions and terms before accepting this offer.' }}<br>Acceptance does not reserve a vehicle or confirm a booking.</div>
+<h2>Prepared for</h2><p>{{ $contact['name'] ?? '' }}<br>{{ $contact['email'] ?? '' }} {{ $contact['phone'] ?? '' }}</p>
+<h2>Service and journey</h2><p>{{ $revision->service_name }}</p><p>Preferred date: {{ $quote->preferred_date?->format('d M Y') }} (indicative; availability is not confirmed)</p>
+@foreach($revision->stops as $stop)<p><strong>{{ ucfirst($stop->kind) }} {{ $stop->position+1 }}</strong>: {{ $stop->address_line }}, {{ $stop->city }} {{ $stop->postal_code }}<br>{{ $stop->instructions }}</p>@endforeach
+<h2>Inventory summary</h2><p>{{ $revision->inventory_summary['quantity'] }} items · estimated volume {{ $revision->inventory_summary['volume_m3'] }} m³ · {{ $revision->inventory_summary['total_weight_kg'] === null ? 'Total weight needs confirmation' : 'Estimated weight '.$revision->inventory_summary['total_weight_kg'].' kg' }}</p>
+<table><thead><tr><th>Item</th><th>Quantity</th><th>Measurement source</th></tr></thead><tbody>@foreach($revision->inventory as $item)<tr><td>{{ $item->name }}</td><td>{{ $item->quantity }}</td><td>{{ ucfirst($item->measurement_source) }}</td></tr>@endforeach</tbody></table>
+<h2>Itemised charges {{ $revision->currency ? '('.$revision->currency.')' : '' }}</h2>
+<table><thead><tr><th>Description</th><th>Quantity</th><th>Rate</th><th class="money">Amount</th></tr></thead><tbody>@forelse($revision->lines as $line)@php($meta = $lineMetadata[$line->code] ?? [])<tr><td>{{ $line->description }}</td><td>{{ ($meta['rate_kind'] ?? '') === 'percent' || $line->stage === 'minimum' ? '—' : (str_contains((string)$line->quantity,'.') ? rtrim(rtrim((string)$line->quantity,'0'),'.') : $line->quantity).' '.($meta['quantity_unit'] ?? '') }}</td><td>{{ $meta['rate_display'] ?? '' }}</td><td class="money">{{ $money($line->amount_minor) }}</td></tr>@empty<tr><td colspan="4">Pricing will be prepared after review.</td></tr>@endforelse
+@if($revision->total_minor !== null)<tr><td colspan="3">Subtotal before tax</td><td class="money">{{ $money($revision->subtotal_minor) }}</td></tr><tr><td colspan="3">Tax</td><td class="money">{{ $money($revision->tax_minor) }}</td></tr><tr class="total"><td colspan="3">Total {{ $revision->currency }}</td><td class="money">{{ $money($revision->total_minor) }}</td></tr>@endif</tbody></table>
+@if($activeReviewReasons)<h2>{{ $revision->approval === 'approved' ? 'Assumptions reviewed by operations' : 'Items requiring confirmation' }}</h2>@foreach($activeReviewReasons as $reason)<p>{{ $reason['customer_message'] }}</p>@endforeach @endif
+<section class="legal"><h2>Terms</h2><p class="terms">{{ $revision->terms ?: 'Terms will be supplied with the approved quotation.' }}</p><h2>Exclusions</h2><p class="terms">{{ $revision->exclusions ?: 'No additional exclusions recorded.' }}</p>
+</section><footer>{{ $settings->display_name }} · {{ $quote->reference }} · Revision {{ $revision->number }} · No booking or resource reservation is confirmed by this document.</footer>
+</body></html>

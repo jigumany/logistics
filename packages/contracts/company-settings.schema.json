@@ -1,0 +1,110 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "UpdateCompanySettings",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "display_name",
+    "contact_email",
+    "payment_terms",
+    "deposit_basis_points"
+  ],
+  "properties": {
+    "display_name": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 160
+    },
+    "contact_email": {
+      "type": "string",
+      "format": "email",
+      "maxLength": 254
+    },
+    "contact_phone": {
+      "type": ["string", "null"],
+      "maxLength": 30
+    },
+    "payment_terms": {
+      "enum": ["deposit", "full", "invoice"]
+    },
+    "deposit_basis_points": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 10000
+    },
+    "timezone": {
+      "type": "string"
+    },
+    "registered_name": {
+      "type": ["string", "null"]
+    },
+    "registration_number": {
+      "type": ["string", "null"]
+    },
+    "vat_number": {
+      "type": ["string", "null"]
+    },
+    "primary_contact_name": {
+      "type": ["string", "null"]
+    },
+    "website": {
+      "type": ["string", "null"]
+    },
+    "description": {
+      "type": ["string", "null"]
+    },
+    "operating_address": {
+      "type": ["string", "null"]
+    },
+    "billing_address": {
+      "type": ["string", "null"]
+    },
+    "operational_email": {
+      "type": ["string", "null"]
+    },
+    "operational_phone": {
+      "type": ["string", "null"]
+    },
+    "operational_status": {
+      "enum": ["active", "paused", "closed"]
+    },
+    "measurement_units": {
+      "enum": ["metric", "imperial"]
+    },
+    "booking_notice_minutes": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "job_buffer_minutes": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "public_contact_visible": {
+      "type": "boolean"
+    },
+    "booking_enabled": {
+      "type": "boolean"
+    },
+    "default_service_public_id": {
+      "type": ["string", "null"]
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "payment_terms": {
+            "const": "deposit"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "deposit_basis_points": {
+            "minimum": 1
+          }
+        }
+      }
+    }
+  ]
+}

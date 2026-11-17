@@ -1,0 +1,93 @@
+name: logistics-platform
+x-platform: &platform
+  image: logistics-platform-php:development
+  build:
+    context: .
+    dockerfile: infrastructure/docker/platform.Dockerfile
+    target: development
+  working_dir: /app
+  volumes:
+    - ./apps/platform:/app
+    - platform-vendor:/app/vendor
+    - composer-cache:/root/.cache/composer
+  depends_on:
+    postgres:
+      condition: service_healthy
+    redis:
+      condition: service_healthy
+services:
+  platform:
+    <<: *platform
+    restart: unless-stopped
+  nginx:
+    image: nginx:1.28-alpine
+    ports: ["127.0.0.1:8080:80"]
+    volumes:
+      - ./apps/platform/public:/app/public:ro
+      - ./infrastructure/nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on: [platform]
+  horizon:
+    <<: *platform
+    command: php artisan horizon
+    restart: unless-stopped
+    stop_grace_period: 90s
+  scheduler:
+    <<: *platform
+    command: php artisan schedule:work
+    restart: unless-stopped
+  postgres:
+    image: postgis/postgis:17-3.5
+    environment:
+      POSTGRES_DB: logistics
+      POSTGRES_USER: logistics
+      POSTGRES_PASSWORD: local-development-only
+    ports: ["127.0.0.1:5432:5432"]
+    volumes: ["postgres-data:/var/lib/postgresql/data"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U logistics -d logistics"]
+      interval: 5s
+      timeout: 5s
+      retries: 15
+  redis:
+    image: redis:7.4-alpine
+    command: redis-server --appendonly yes
+    volumes: ["redis-data:/data"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 15
+  minio:
+    build:
+      context: .
+      dockerfile: infrastructure/docker/minio.Dockerfile
+    command: server /data --console-address :9001
+    environment:
+      MINIO_REGION_NAME: af-south-1
+      MINIO_ROOT_USER: local-storage
+      MINIO_ROOT_PASSWORD: local-storage-password
+    ports: ["127.0.0.1:9001:9001"]
+    volumes: ["object-data:/data"]
+  website:
+    image: node:22-bookworm-slim
+    working_dir: /workspace
+    volumes:
+      - .:/workspace
+      - website-node-modules:/workspace/node_modules
+      - website-platform-node-modules:/workspace/apps/platform/node_modules
+      - website-app-node-modules:/workspace/apps/website/node_modules
+      - website-cache:/workspace/apps/website/.next
+    command: npm run dev --workspace=@logistics/website
+    environment:
+      NEXT_PUBLIC_PLATFORM_URL: http://localhost:8080
+    ports: ["127.0.0.1:3000:3000"]
+volumes:
+  postgres-data:
+  redis-data:
+  object-data:
+  website-node-modules:
+  website-platform-node-modules:
+  website-app-node-modules:
+  website-cache:
+  platform-vendor:
+  composer-cache:

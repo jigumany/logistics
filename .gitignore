@@ -1,0 +1,15 @@
+/.cache/
+/node_modules/
+**/node_modules/
+**/.next/
+**/vendor/
+**/.env
+**/.env.*
+!**/.env.example
+**/public/build/
+**/storage/*.key
+**/playwright-report/
+**/test-results/
+**/*.tsbuildinfo
+/sf_proc_*
+**/next-env.d.ts

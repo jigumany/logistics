@@ -1,0 +1,23 @@
+{
+  "name": "logistics-platform",
+  "private": true,
+  "workspaces": [
+    "apps/platform",
+    "apps/website",
+    "packages/*"
+  ],
+  "scripts": {
+    "build": "npm run build --workspaces --if-present",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present",
+    "test:e2e": "playwright test",
+    "generate:types": "node scripts/generate-types.mjs",
+    "format:check": "prettier --check \"apps/**/resources/js/**/*.{ts,tsx}\" \"apps/website/app/**/*.{ts,tsx}\" \"packages/*/src/**/*.{ts,tsx}\" \"scripts/*.mjs\""
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.58.0",
+    "json-schema-to-typescript": "^16.0.0",
+    "prettier": "^3.10.1",
+    "typescript": "^5.9.0"
+  }
+}

@@ -1,0 +1,17 @@
+**/node_modules
+**/vendor
+**/.next
+**/.env
+.git
+.cache
+**/storage/logs/*
+**/tests
+
+**/storage/framework/cache/phpstan
+**/storage/framework/testing
+**/storage/framework/sessions/*
+**/storage/framework/views/*.php
+**/bootstrap/cache/*.php
+**/public/hot
+test-results
+playwright-report

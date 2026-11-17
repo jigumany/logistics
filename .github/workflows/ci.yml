@@ -1,0 +1,68 @@
+name: Platform checks
+on: [push, pull_request]
+permissions:
+  contents: read
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgis/postgis:17-3.5
+        env:
+          POSTGRES_DB: logistics_test
+          POSTGRES_USER: logistics
+          POSTGRES_PASSWORD: testing-only
+        ports: ['5432:5432']
+        options: --health-cmd 'pg_isready -U logistics -d logistics_test' --health-interval 5s --health-timeout 5s --health-retries 15
+    defaults:
+      run:
+        working-directory: apps/platform
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: gd, pdo_pgsql, mbstring, intl, pcntl, bcmath, zip
+          coverage: none
+      - run: composer install --no-interaction --prefer-dist
+      - run: cp .env.example .env && php artisan key:generate
+      - run: vendor/bin/pint --test
+      - run: vendor/bin/phpstan analyse --memory-limit=512M
+      - run: php artisan test
+        env:
+          DB_CONNECTION: pgsql
+          DB_HOST: 127.0.0.1
+          DB_DATABASE: logistics_test
+          DB_USERNAME: logistics
+          DB_PASSWORD: testing-only
+  frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: gd, pdo_sqlite, mbstring, intl, pcntl, bcmath, zip
+          coverage: none
+      - run: composer install --working-dir=apps/platform --no-interaction --prefer-dist
+      - run: cp apps/platform/.env.example apps/platform/.env && cd apps/platform && php artisan key:generate
+      - run: npm ci
+      - run: npm run generate:types && git diff --exit-code -- packages/types/src/index.ts packages/types/src/quotations.ts
+      - run: npm run format:check
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:e2e
+  containers:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - run: docker build --file infrastructure/docker/platform.Dockerfile --target production --tag logistics-platform:test .
+      - run: docker build --file infrastructure/docker/platform.Dockerfile --target web --tag logistics-web:test .
+      - run: docker build --file infrastructure/docker/website.Dockerfile --tag logistics-website:test .

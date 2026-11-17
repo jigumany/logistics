@@ -1,0 +1,239 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "PlatformContract",
+  "type": "object",
+  "additionalProperties": false,
+  "definitions": {
+    "Role": {
+      "type": "string",
+      "enum": ["owner", "admin", "dispatcher", "driver", "viewer"]
+    },
+    "Company": {
+      "type": "object",
+      "properties": {
+        "public_id": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "slug": {
+          "type": "string"
+        }
+      },
+      "required": ["public_id", "name", "slug"],
+      "additionalProperties": false
+    },
+    "CompanySettings": {
+      "type": "object",
+      "properties": {
+        "public_id": {
+          "type": "string"
+        },
+        "display_name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 160
+        },
+        "contact_email": {
+          "type": "string",
+          "format": "email",
+          "maxLength": 254
+        },
+        "contact_phone": {
+          "type": ["string", "null"]
+        },
+        "payment_terms": {
+          "enum": ["deposit", "full", "invoice"]
+        },
+        "deposit_basis_points": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 10000
+        },
+        "currency": {
+          "const": "ZAR"
+        },
+        "timezone": {
+          "type": "string"
+        },
+        "registered_name": {
+          "type": ["string", "null"]
+        },
+        "registration_number": {
+          "type": ["string", "null"]
+        },
+        "vat_number": {
+          "type": ["string", "null"]
+        },
+        "primary_contact_name": {
+          "type": ["string", "null"]
+        },
+        "website": {
+          "type": ["string", "null"]
+        },
+        "description": {
+          "type": ["string", "null"]
+        },
+        "operating_address": {
+          "type": ["string", "null"]
+        },
+        "billing_address": {
+          "type": ["string", "null"]
+        },
+        "operational_email": {
+          "type": ["string", "null"]
+        },
+        "operational_phone": {
+          "type": ["string", "null"]
+        },
+        "operational_status": {
+          "enum": ["active", "paused", "closed"]
+        },
+        "measurement_units": {
+          "enum": ["metric", "imperial"]
+        },
+        "booking_notice_minutes": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "job_buffer_minutes": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "public_contact_visible": {
+          "type": "boolean"
+        },
+        "booking_enabled": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "public_id",
+        "display_name",
+        "contact_email",
+        "contact_phone",
+        "payment_terms",
+        "deposit_basis_points",
+        "currency",
+        "timezone",
+        "registered_name",
+        "registration_number",
+        "vat_number",
+        "primary_contact_name",
+        "website",
+        "description",
+        "operating_address",
+        "billing_address",
+        "operational_email",
+        "operational_phone",
+        "operational_status",
+        "measurement_units",
+        "booking_notice_minutes",
+        "job_buffer_minutes",
+        "public_contact_visible",
+        "booking_enabled"
+      ],
+      "additionalProperties": false
+    },
+    "ServiceType": {
+      "type": "object",
+      "properties": {
+        "public_id": {
+          "type": "string"
+        },
+        "code": {
+          "enum": ["household", "office", "general"]
+        },
+        "name": {
+          "type": "string"
+        },
+        "enabled": {
+          "type": "boolean"
+        }
+      },
+      "required": ["public_id", "code", "name", "enabled"],
+      "additionalProperties": false
+    },
+    "SharedProps": {
+      "type": "object",
+      "properties": {
+        "auth": {
+          "type": "object",
+          "properties": {
+            "user": {
+              "anyOf": [
+                {
+                  "type": "object",
+                  "properties": {
+                    "name": {
+                      "type": "string"
+                    },
+                    "email": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["name", "email"],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "role": {
+              "anyOf": [
+                {
+                  "$ref": "#/definitions/Role"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "required": ["user", "role"],
+          "additionalProperties": false
+        },
+        "company": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/Company"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "flash": {
+          "type": "object",
+          "properties": {
+            "success": {
+              "type": ["string", "null"]
+            }
+          },
+          "required": ["success"],
+          "additionalProperties": false
+        }
+      },
+      "required": ["auth", "company", "flash"],
+      "additionalProperties": true
+    },
+    "OperationalResource": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "public_id": {
+          "type": "string"
+        },
+        "kind": {
+          "enum": ["vehicle", "driver", "mover"]
+        },
+        "active": {
+          "type": "boolean"
+        }
+      },
+      "required": ["public_id", "kind", "active"]
+    }
+  }
+}
