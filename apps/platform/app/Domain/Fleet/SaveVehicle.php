@@ -35,6 +35,9 @@ final class SaveVehicle
                 throw ValidationException::withMessages(['capacity_verification_note' => 'Record the actual measurements or specification evidence before verifying capacity.']);
             }
             $vehicle->fill($data);
+            if ($verified && $vehicle->getAttribute('demonstration_key') && str_starts_with(strtoupper($vehicle->registration_number), 'DEMO')) {
+                throw ValidationException::withMessages(['registration_number' => 'Replace the synthetic demonstration registration with the actual vehicle registration before verifying specifications.']);
+            }
             $capacityChanged = $vehicle->isDirty(['vehicle_type_id', 'registration_number', 'usable_volume_m3', 'payload_kg', 'cargo_length_m', 'cargo_width_m', 'cargo_height_m', 'max_item_length_m', 'max_item_width_m', 'max_item_height_m', 'capacity_margin_basis_points']);
             $vehicle->capacity_verified = $verified && (! $capacityChanged || array_key_exists('capacity_verified', $data));
             $vehicle->capacity_verified_at = $vehicle->capacity_verified ? CarbonImmutable::now() : null;

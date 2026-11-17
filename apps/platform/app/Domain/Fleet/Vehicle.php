@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Str;
 
 /**
+ * @property string|null $demonstration_key
  * @property bool $capacity_verified
  * @property CarbonImmutable|null $capacity_verified_at
  * @property string|null $capacity_verification_note

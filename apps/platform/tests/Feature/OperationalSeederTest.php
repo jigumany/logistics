@@ -10,7 +10,7 @@ use Database\Seeders\OperationalSeeder;
 use Illuminate\Support\Facades\DB;
 
 it('seeds operational examples idempotently without offering verified coverage', function (): void {
-    $tenant = Tenant::create(['name' => 'Example', 'slug' => 'example']);
+    $tenant = Tenant::create(['name' => 'Example', 'slug' => 'cape-town-movers']);
     $user = User::factory()->create();
     Membership::create(['tenant_id' => $tenant->id, 'user_id' => $user->id, 'role' => Role::Owner]);
     app(TenantContext::class)->set($tenant);

@@ -18,6 +18,7 @@ if (! $app->environment('testing') || config('database.default') !== 'sqlite' ||
     throw new RuntimeException('Browser tests require their dedicated SQLite database.');
 }
 Artisan::call('migrate:fresh', ['--force' => true]);
+Artisan::call('db:seed', ['--class' => \Database\Seeders\VehicleTypeCatalogueSeeder::class, '--force' => true]);
 $owner = User::create(['name' => 'Browser Owner', 'email' => 'browser-owner@example.test', 'password' => 'browser-tests-only-password']);
 $viewer = User::create(['name' => 'Browser Viewer', 'email' => 'browser-viewer@example.test', 'password' => 'browser-tests-only-password']);
 $tenant = Tenant::create(['name' => 'Browser Movers', 'slug' => 'browser-movers']);

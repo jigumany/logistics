@@ -3,9 +3,6 @@
 namespace Database\Seeders;
 
 use App\Domain\Fleet\Depot;
-use App\Domain\Fleet\SaveVehicle;
-use App\Domain\Fleet\Vehicle;
-use App\Domain\Fleet\VehicleType;
 use App\Domain\Geography\ServiceZone;
 use App\Domain\Identity\Membership;
 use App\Domain\Resources\SaveStaffMember;
@@ -22,6 +19,7 @@ final class OperationalSeeder extends Seeder
         if (! app()->environment(['local', 'testing'])) {
             throw new RuntimeException('Operational example data is for development only.');
         }
+        $this->call(VehicleTypeCatalogueSeeder::class);
         $context = app(TenantContext::class);
         foreach (Tenant::lazyById(100) as $tenant) {
             $context->set($tenant);
@@ -30,10 +28,7 @@ final class OperationalSeeder extends Seeder
                 if (! $actor) {
                     continue;
                 }
-                $depot = Depot::firstOrCreate(['name' => 'Development example depot'], ['address_line' => 'Example only — replace with verified operating address', 'city' => 'Cape Town', 'country_code' => 'ZA', 'latitude' => -33.9249, 'longitude' => 18.4241, 'coordinate_source' => 'development_example', 'coordinates_verified' => false, 'active' => true, 'is_primary' => false, 'timezone' => 'Africa/Johannesburg']);
-                if (! Vehicle::where('registration_number', 'DEMO0001')->exists()) {
-                    app(SaveVehicle::class)->execute(['name' => 'Development example van', 'registration_number' => 'DEMO0001', 'vehicle_type_id' => VehicleType::firstOrFail()->id, 'status' => 'inactive', 'depot_id' => $depot->id, 'capacity_margin_basis_points' => 1000], $actor);
-                }
+                $depot = Depot::orderByDesc('is_primary')->orderBy('id')->first() ?? Depot::firstOrCreate(['name' => 'Development example depot'], ['address_line' => 'Example only — replace with verified operating address', 'city' => 'Cape Town', 'country_code' => 'ZA', 'latitude' => -33.9249, 'longitude' => 18.4241, 'coordinate_source' => 'development_example', 'coordinates_verified' => false, 'active' => true, 'is_primary' => false, 'timezone' => 'Africa/Johannesburg']);
                 if (! StaffMember::where('email', 'development-mover@example.test')->exists()) {
                     app(SaveStaffMember::class)->execute(['full_name' => 'Development example mover', 'email' => 'development-mover@example.test', 'role' => 'mover', 'engagement_status' => 'contractor', 'active' => false, 'depot_id' => $depot->id, 'eligible_vehicle_classes' => []], $actor);
                 }
@@ -42,5 +37,6 @@ final class OperationalSeeder extends Seeder
                 $context->clear();
             }
         }
+        $this->call(DemonstrationVehicleSeeder::class);
     }
 }

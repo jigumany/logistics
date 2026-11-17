@@ -125,7 +125,7 @@ function Editor({ module, record, companyTimezone }: Props) {
             for (const field of config.fields) {
                 if (field.type === "number")
                     next[field.name] =
-                        data[field.name] === ""
+                        data[field.name] === "" || data[field.name] == null
                             ? null
                             : Number(data[field.name]);
                 if (field.type === "datetime" && data[field.name])
@@ -384,6 +384,16 @@ function Editor({ module, record, companyTimezone }: Props) {
                     </Button>
                 )}
             </div>
+            {module === "fleet" &&
+            record?.demonstration_key &&
+            !record.capacity_verified ? (
+                <p className="mb-5 rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm">
+                    Demonstration vehicle · synthetic registration and estimated
+                    capacity. Replace these with actual truck data, record
+                    verification evidence, then activate the vehicle for
+                    operations.
+                </p>
+            ) : null}
             {record?.archived_at ? (
                 <p className="mb-5 rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm">
                     This record is archived. Historical relationships are

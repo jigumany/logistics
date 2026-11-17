@@ -25,7 +25,7 @@ final class OperationalLookupController extends Controller
         if ($kind === 'service-definitions') {
             $items = ServiceType::orderBy('id')->get()->map(fn ($row) => ['value' => $row->key, 'label' => $row->name]);
         } elseif ($kind === 'vehicle-types') {
-            $items = collect(Cache::remember('system:vehicle-types:v1', 3600, fn () => VehicleType::where('active', true)->orderBy('name')->limit(50)->get()->toArray()))->map(fn ($row) => ['value' => is_array($row) ? $row['key'] : $row->key, 'label' => is_array($row) ? $row['name'] : $row->name]);
+            $items = collect(Cache::remember('system:vehicle-types:v1', 3600, fn () => VehicleType::where('active', true)->orderBy('name')->limit(50)->get()->toArray()))->map(fn ($row) => ['value' => is_array($row) ? $row['key'] : $row->key, 'label' => (is_array($row) ? $row['name'] : $row->name).(str_starts_with(is_array($row) ? $row['key'] : $row->key, 'demo_') ? ' · demo specifications' : '')]);
         } elseif ($kind === 'depots') {
             $items = Depot::where(fn ($q) => $q->where('active', true)->orWhere('public_id', $selected))->whereRaw('LOWER(name) LIKE ?', ['%'.strtolower($search).'%'])->orderBy('name')->limit(50)->get()->map(fn ($row) => ['value' => $row->public_id, 'label' => $row->name]);
         } elseif ($kind === 'services') {

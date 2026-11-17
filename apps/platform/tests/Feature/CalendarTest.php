@@ -50,7 +50,7 @@ it('clips overnight spillover on closed dates', function (): void {
 });
 it('intersects company and resource hours and subtracts maintenance blocks', function (): void {
     [$tenant,$user] = calendarTenant();
-    $vehicle = app(SaveVehicle::class)->execute(['name' => 'Truck', 'registration_number' => 'CAL123', 'vehicle_type_id' => VehicleType::firstOrFail()->id, 'status' => 'available', 'capacity_margin_basis_points' => 1000], $user->id);
+    $vehicle = app(SaveVehicle::class)->execute(['capacity_verified' => true, 'capacity_verification_note' => 'Test vehicle specification evidence.', 'name' => 'Truck', 'registration_number' => 'CAL123', 'vehicle_type_id' => VehicleType::firstOrFail()->id, 'status' => 'available', 'capacity_margin_basis_points' => 1000], $user->id);
     $resource = Resource::firstOrFail();
     weekly();
     weekly($resource->id, ['opens_at' => '09:00', 'closes_at' => '16:00']);

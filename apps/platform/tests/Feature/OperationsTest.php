@@ -78,7 +78,7 @@ it('creates a vehicle and its canonical resource with catalogue defaults', funct
     $this->actingAs($user)->post('/c/operations/fleet', opVehiclePayload())->assertSessionHasNoErrors()->assertRedirect();
     $vehicle = DB::table('vehicles')->first();
     expect($vehicle->registration_number)->toBe('CA123456');
-    $this->assertDatabaseHas('resources', ['tenant_id' => $tenant->id, 'vehicle_id' => $vehicle->id, 'kind' => 'vehicle', 'active' => true]);
+    $this->assertDatabaseHas('resources', ['tenant_id' => $tenant->id, 'vehicle_id' => $vehicle->id, 'kind' => 'vehicle', 'active' => false]);
     expect($vehicle->uuid)->not->toBeNull();
 });
 it('rejects invalid vehicle dimensions and payload', function (string $field, mixed $value): void {
