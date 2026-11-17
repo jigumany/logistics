@@ -2,9 +2,11 @@ import { Head } from "@inertiajs/react";
 import type { PropsWithChildren } from "react";
 export default function QuotationLayout({
     business,
+    booking = false,
     children,
     title,
 }: {
+    booking?: boolean;
     business: { name: string; slug: string };
     title: string;
 } & PropsWithChildren) {
@@ -28,8 +30,9 @@ export default function QuotationLayout({
                 {children}
             </main>
             <footer className="mx-auto max-w-5xl px-6 py-8 text-sm text-slate-500">
-                Preferred dates are indicative. Quotations and acceptance do not
-                confirm availability, reserve a vehicle or create a booking.
+                {booking
+                    ? "Only a booking marked confirmed has allocated resources. Arrival windows remain estimates."
+                    : "Preferred dates are indicative. Quotations and acceptance do not confirm availability, reserve a vehicle or create a booking."}
             </footer>
         </div>
     );

@@ -222,8 +222,9 @@ export interface QuotationData {
     save: string;
     decline: string;
     cancel: string;
+    booking?: string;
   };
-  booking_confirmed: false;
+  booking_confirmed: boolean;
   information_request: string | null;
   attachments: {
     public_id: string;

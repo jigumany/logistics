@@ -4,8 +4,10 @@ namespace App\Providers;
 
 use App\Domain\Availability\CalendarWindows;
 use App\Domain\Availability\OperatingCalendar;
+use App\Domain\Bookings\BookingPaymentVerifier;
 use App\Domain\Geography\CoverageLookup;
 use App\Domain\Notifications\DomainEvent;
+use App\Domain\Notifications\QueueBookingNotice;
 use App\Domain\Notifications\QueueQuoteArtifacts;
 use App\Domain\Quotes\QuotationDocumentRenderer;
 use App\Domain\Routing\AddressProvider;
@@ -14,6 +16,7 @@ use App\Domain\Tenancy\TenantContext;
 use App\Infrastructure\Maps\GoogleAddressProvider;
 use App\Infrastructure\Maps\GoogleRoutingProvider;
 use App\Infrastructure\Maps\PostgisCoverageLookup;
+use App\Infrastructure\Payments\UnconfiguredBookingPayments;
 use App\Infrastructure\Storage\DompdfQuoteRenderer;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Database\Eloquent\Model;
@@ -28,6 +31,7 @@ final class AppServiceProvider extends ServiceProvider
 {
     public function register(): void
     {
+        $this->app->bind(BookingPaymentVerifier::class, UnconfiguredBookingPayments::class);
         $this->app->bind(QuotationDocumentRenderer::class, DompdfQuoteRenderer::class);
         $this->app->bind(RoutingProvider::class, GoogleRoutingProvider::class);
         $this->app->bind(AddressProvider::class, GoogleAddressProvider::class);
@@ -39,6 +43,7 @@ final class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         Event::listen(DomainEvent::class, [QueueQuoteArtifacts::class, 'handle']);
+        Event::listen(DomainEvent::class, [QueueBookingNotice::class, 'handle']);
         Model::preventLazyLoading(! $this->app->isProduction());
         Gate::define('viewHorizon', fn () => false);
         RateLimiter::for('quote-public', fn (Request $request) => Limit::perMinute(90)->by($request->ip().'|'.$request->route('company')));
@@ -47,6 +52,8 @@ final class AppServiceProvider extends ServiceProvider
         RateLimiter::for('quote-mutation', fn (Request $request) => Limit::perMinute(15)->by($request->ip().'|'.$request->route('quote')));
         RateLimiter::for('quote-calculation', fn (Request $request) => [Limit::perMinute(3)->by('minute|'.$request->ip().'|'.$request->route('company')), Limit::perHour(30)->by('hour|'.$request->ip().'|'.$request->route('company')), Limit::perHour(10)->by('quote|'.$request->route('quote'))]);
         RateLimiter::for('quote-media', fn (Request $request) => Limit::perMinute(60)->by($request->ip().'|'.$request->route('quote')));
+        RateLimiter::for('booking-public', fn (Request $request) => Limit::perMinute(30)->by($request->ip().'|'.$request->route('quote')));
+        RateLimiter::for('booking-mutation', fn (Request $request) => Limit::perMinute(15)->by($request->ip().'|'.$request->route('quote')));
         RateLimiter::for('login', fn (Request $request) => [Limit::perMinute(5)->by(hash('sha256', Str::lower((string) $request->input('email')).'|'.$request->ip())), Limit::perMinute(30)->by($request->ip())]);
     }
 }

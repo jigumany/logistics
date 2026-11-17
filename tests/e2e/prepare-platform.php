@@ -36,3 +36,14 @@ CompanySettings::create(['display_name' => 'Cape Town Demo', 'contact_email' => 
 TenantService::create(['code' => 'household', 'name' => 'Household moving', 'enabled' => true, 'active' => true]);
 app(\Database\Seeders\DemonstrationPriceBookSeeder::class)->run();
 app(TenantContext::class)->clear();
+require __DIR__.'/../../apps/platform/tests/Support/QuotationFixtures.php';
+require __DIR__.'/../../apps/platform/tests/Support/BookingFixtures.php';
+[$bookingTenant,$bookingOwner,$bookingService,$bookingQuotes,$bookingStart]=bookingFixture();
+Membership::create(['tenant_id'=>$bookingTenant->id,'user_id'=>$owner->id,'role'=>Role::Owner]);
+$input=quoteInput($bookingService,['preferred_date'=>$bookingStart->setTimezone('Africa/Johannesburg')->toDateString(),'preferred_time'=>'09:00']);
+$expiryQuote=app(\App\Domain\Quotes\CreateQuoteDraft::class)->execute($input,(string)\Illuminate\Support\Str::uuid());
+$expiryQuote=app(\App\Domain\Quotes\CalculateQuote::class)->execute($expiryQuote,0);
+$expiryQuote=app(\App\Domain\Quotes\SubmitQuote::class)->execute($expiryQuote,[...quoteContact(),'email'=>'expiry-browser@example.test'],$expiryQuote->lock_version);
+$expiryQuote=app(\App\Domain\Quotes\AcceptQuote::class)->execute($expiryQuote,$expiryQuote->currentRevision->public_id);
+file_put_contents(__DIR__.'/../../.cache/booking-browser.json',json_encode(['date'=>$bookingStart->setTimezone('Africa/Johannesburg')->toDateString(),'start'=>$bookingStart->toIso8601String(),'customers'=>array_map(fn($quote)=>app(\App\Domain\Bookings\GuestBookingLinks::class)->forQuote($quote),[...$bookingQuotes,$expiryQuote])],JSON_THROW_ON_ERROR));
+app(TenantContext::class)->clear();

@@ -2,6 +2,7 @@
 
 namespace App\Domain\Fleet;
 
+use App\Domain\Availability\ProtectAllocatedResource;
 use App\Domain\Resources\ResourceRegistry;
 use App\Domain\Tenancy\RecordsAdministrativeChange;
 use App\Domain\Tenancy\Tenant;
@@ -41,6 +42,9 @@ final class SaveVehicle
             $capacityChanged = $vehicle->isDirty(['vehicle_type_id', 'registration_number', 'usable_volume_m3', 'payload_kg', 'cargo_length_m', 'cargo_width_m', 'cargo_height_m', 'max_item_length_m', 'max_item_width_m', 'max_item_height_m', 'capacity_margin_basis_points']);
             $vehicle->capacity_verified = $verified && (! $capacityChanged || array_key_exists('capacity_verified', $data));
             $vehicle->capacity_verified_at = $vehicle->capacity_verified ? CarbonImmutable::now() : null;
+            if ($vehicle->exists && $vehicle->isDirty(['vehicle_type_id', 'registration_number', 'usable_volume_m3', 'payload_kg', 'cargo_length_m', 'cargo_width_m', 'cargo_height_m', 'max_item_length_m', 'max_item_width_m', 'max_item_height_m', 'capacity_margin_basis_points', 'capacity_verified', 'status', 'depot_id', 'operating_restrictions', 'archived_at'])) {
+                app(ProtectAllocatedResource::class)->assertMutable('vehicle_id', $vehicle->id);
+            }
             $vehicle->save();
             app(ResourceRegistry::class)->vehicle($vehicle);
             app(RecordsAdministrativeChange::class)->record($vehicle, 'vehicle.saved', $actorId);
@@ -52,6 +56,8 @@ final class SaveVehicle
     public function archive(Vehicle $vehicle, int $actorId): void
     {
         DB::transaction(function () use ($vehicle, $actorId): void {
+            Tenant::whereKey(app(TenantContext::class)->tenant()->id)->lockForUpdate()->firstOrFail();
+            app(ProtectAllocatedResource::class)->assertMutable('vehicle_id', $vehicle->id);
             $vehicle->archived_at = now();
             $vehicle->status = 'inactive';
             $vehicle->save();

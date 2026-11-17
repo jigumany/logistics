@@ -2,12 +2,15 @@
 
 namespace App\Http\Controllers;
 
+use App\Domain\Availability\ProtectAllocatedCalendars;
 use App\Domain\Availability\ResourceBlock;
 use App\Domain\Availability\SaveCalendarConfiguration;
 use App\Domain\Availability\ScheduleOverride;
 use App\Domain\Availability\WorkingSchedule;
 use App\Domain\Tenancy\CompanySettings;
 use App\Domain\Tenancy\RecordsAdministrativeChange;
+use App\Domain\Tenancy\Tenant;
+use App\Domain\Tenancy\TenantContext;
 use App\Http\Requests\CalendarRequest;
 use App\Http\Resources\OperationalRecord;
 use Illuminate\Http\RedirectResponse;
@@ -79,9 +82,11 @@ final class CalendarController extends Controller
         $this->authorizeAdmin($request);
         $model = $this->model($kind);
         DB::transaction(function () use ($model, $record, $request): void {
+            Tenant::whereKey(app(TenantContext::class)->tenant()->id)->lockForUpdate()->firstOrFail();
             $row = $model::where('public_id', $record)->lockForUpdate()->firstOrFail();
             app(RecordsAdministrativeChange::class)->record($row, 'calendar.removed', $request->user()->id);
             $row->delete();
+            app(ProtectAllocatedCalendars::class)->assertValid();
         });
 
         return redirect('/c/'.$company.'/calendar/'.$kind)->with('success', 'Calendar configuration removed.');

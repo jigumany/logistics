@@ -2,6 +2,7 @@
 
 namespace App\Domain\Resources;
 
+use App\Domain\Availability\ProtectAllocatedResource;
 use App\Domain\Fleet\Depot;
 use App\Domain\Tenancy\RecordsAdministrativeChange;
 use App\Domain\Tenancy\Tenant;
@@ -27,7 +28,11 @@ final class SaveStaffMember
             $classes = $data['eligible_vehicle_classes'] ?? [];
             unset($data['eligible_vehicle_classes']);
             $staff ??= new StaffMember;
-            $staff->fill($data)->save();
+            $staff->fill($data);
+            if ($staff->exists && ($staff->isDirty(['role', 'active', 'engagement_status', 'depot_id', 'licence_category', 'licence_expires_on', 'archived_at']) || array_diff($staff->eligibleClasses()->pluck('vehicle_class')->all(), $classes))) {
+                app(ProtectAllocatedResource::class)->assertMutable('staff_id', $staff->id);
+            }
+            $staff->save();
             DriverVehicleClass::where('tenant_id', app(TenantContext::class)->tenant()->id)->where('staff_id', $staff->id)->delete();
             foreach ($classes as $class) {
                 DriverVehicleClass::create(['staff_id' => $staff->id, 'vehicle_class' => $class]);
@@ -42,6 +47,8 @@ final class SaveStaffMember
     public function archive(StaffMember $staff, int $actorId): void
     {
         DB::transaction(function () use ($staff, $actorId): void {
+            Tenant::whereKey(app(TenantContext::class)->tenant()->id)->lockForUpdate()->firstOrFail();
+            app(ProtectAllocatedResource::class)->assertMutable('staff_id', $staff->id);
             $staff->archived_at = now();
             $staff->active = false;
             $staff->save();

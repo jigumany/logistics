@@ -16,7 +16,7 @@ export default defineConfig({
       command: "node tests/e2e/serve-platform.mjs",
       url: "http://127.0.0.1:8081/login",
       reuseExistingServer: false,
-      timeout: 120000,
+      timeout: 240000,
     },
   ],
   projects: [{ name: "chromium", use: { browserName: "chromium" } }],

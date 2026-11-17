@@ -625,6 +625,9 @@
             },
             "cancel": {
               "type": "string"
+            },
+            "booking": {
+              "type": "string"
             }
           },
           "required": [
@@ -643,7 +646,7 @@
           "additionalProperties": false
         },
         "booking_confirmed": {
-          "const": false
+          "type": "boolean"
         },
         "information_request": {
           "type": ["string", "null"]

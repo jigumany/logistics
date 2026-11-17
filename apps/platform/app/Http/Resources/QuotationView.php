@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources;
 
+use App\Domain\Bookings\Booking;
 use App\Domain\Pricing\DescribePriceLine;
 use App\Domain\Quotes\GuestQuoteLinks;
 use App\Domain\Quotes\Quote;
@@ -18,7 +19,7 @@ final class QuotationView
     {
         $quote->loadMissing(['currentRevision.lines', 'currentRevision.inventory', 'currentRevision.stops']);
         $revision = $quote->currentRevision;
-        $data = [...$quote->only('public_id', 'reference', 'status', 'lock_version', 'preferred_date', 'submitted_at', 'accepted_at'), 'revision' => $revision ? $this->revision($revision, $internal) : null, 'links' => app(GuestQuoteLinks::class)->forQuote($quote), 'booking_confirmed' => false];
+        $data = [...$quote->only('public_id', 'reference', 'status', 'lock_version', 'preferred_date', 'submitted_at', 'accepted_at'), 'revision' => $revision ? $this->revision($revision, $internal) : null, 'links' => app(GuestQuoteLinks::class)->forQuote($quote), 'booking_confirmed' => $quote->status === 'accepted' && Booking::where('quote_id', $quote->id)->where('status', 'confirmed')->exists()];
         $data['attachments'] = QuoteAttachment::where('quote_id', $quote->id)->get()->map(fn ($file) => ['public_id' => $file->public_id, 'item_key' => $file->item_key, 'url' => URL::temporarySignedRoute('quote.guest.attachment', $quote->access_expires_at, ['company' => app(TenantContext::class)->tenant()->slug, 'quote' => $quote->public_id, 'attachment' => $file->public_id])]);
         $request = QuoteReviewDecision::where('quote_id', $quote->id)->where('revision_id', $quote->current_revision_id)->where('decision', 'request_information')->orderByDesc('id')->first();
         $data['information_request'] = $request?->reason;

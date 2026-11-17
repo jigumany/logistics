@@ -1,0 +1,260 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "BookingContract",
+  "type": "object",
+  "additionalProperties": false,
+  "definitions": {
+    "BookingHoldData": {
+      "type": "object",
+      "properties": {
+        "public_id": {
+          "type": "string"
+        },
+        "purpose": {
+          "enum": ["initial", "reschedule"]
+        },
+        "status": {
+          "enum": ["active", "consumed", "expired", "released"]
+        },
+        "expires_at": {
+          "type": "string"
+        },
+        "arrival_starts_at": {
+          "type": "string"
+        },
+        "arrival_ends_at": {
+          "type": "string"
+        },
+        "service_starts_at": {
+          "type": "string"
+        },
+        "service_ends_at": {
+          "type": "string"
+        },
+        "requirements": {
+          "type": "object",
+          "properties": {
+            "vehicles": {
+              "type": "integer"
+            },
+            "drivers": {
+              "type": "integer"
+            },
+            "movers": {
+              "type": "integer"
+            },
+            "vehicle_type_key": {
+              "type": "string"
+            }
+          },
+          "required": ["vehicles", "drivers", "movers", "vehicle_type_key"],
+          "additionalProperties": false
+        },
+        "duration_snapshot": {
+          "type": "object",
+          "additionalProperties": true
+        }
+      },
+      "required": [
+        "public_id",
+        "purpose",
+        "status",
+        "expires_at",
+        "arrival_starts_at",
+        "arrival_ends_at",
+        "service_starts_at",
+        "service_ends_at",
+        "requirements",
+        "duration_snapshot"
+      ],
+      "additionalProperties": false
+    },
+    "BookingData": {
+      "type": "object",
+      "properties": {
+        "public_id": {
+          "type": "string"
+        },
+        "reference": {
+          "type": "string"
+        },
+        "status": {
+          "enum": [
+            "pending_confirmation",
+            "pending_payment",
+            "confirmed",
+            "cancelled",
+            "expired"
+          ]
+        },
+        "financial_state": {
+          "enum": [
+            "not_required",
+            "awaiting_verification",
+            "verified",
+            "manual_resolution"
+          ]
+        },
+        "required_payment_minor": {
+          "type": "integer"
+        },
+        "currency": {
+          "type": "string"
+        },
+        "dispatch_state": {
+          "enum": ["blocked", "awaiting_dispatch"]
+        },
+        "refund_state": {
+          "enum": ["none", "review_required"]
+        },
+        "arrival_starts_at": {
+          "type": "string"
+        },
+        "arrival_ends_at": {
+          "type": "string"
+        },
+        "service_starts_at": {
+          "type": "string"
+        },
+        "service_ends_at": {
+          "type": "string"
+        },
+        "lock_version": {
+          "type": "integer"
+        },
+        "requirements": {
+          "type": "object",
+          "properties": {
+            "vehicles": {
+              "type": "integer"
+            },
+            "drivers": {
+              "type": "integer"
+            },
+            "movers": {
+              "type": "integer"
+            },
+            "vehicle_type_key": {
+              "type": "string"
+            }
+          },
+          "required": ["vehicles", "drivers", "movers", "vehicle_type_key"],
+          "additionalProperties": false
+        },
+        "duration_snapshot": {
+          "type": "object",
+          "additionalProperties": true
+        },
+        "confirmation_instructions": {
+          "type": "string"
+        },
+        "history": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "to_status": {
+                "type": "string"
+              },
+              "created_at": {
+                "type": "string"
+              }
+            },
+            "required": ["to_status", "created_at"],
+            "additionalProperties": false
+          }
+        }
+      },
+      "required": [
+        "public_id",
+        "reference",
+        "status",
+        "financial_state",
+        "required_payment_minor",
+        "currency",
+        "dispatch_state",
+        "refund_state",
+        "arrival_starts_at",
+        "arrival_ends_at",
+        "service_starts_at",
+        "service_ends_at",
+        "lock_version",
+        "requirements",
+        "duration_snapshot",
+        "confirmation_instructions",
+        "history"
+      ],
+      "additionalProperties": false
+    },
+    "AvailabilitySlot": {
+      "type": "object",
+      "properties": {
+        "starts_at": {
+          "type": "string"
+        },
+        "ends_at": {
+          "type": "string"
+        },
+        "timezone": {
+          "type": "string"
+        },
+        "state": {
+          "const": "available"
+        },
+        "estimated_service_minutes": {
+          "type": "integer"
+        },
+        "vehicle_class": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "starts_at",
+        "ends_at",
+        "timezone",
+        "state",
+        "estimated_service_minutes",
+        "vehicle_class"
+      ],
+      "additionalProperties": false
+    },
+    "AvailabilityResult": {
+      "type": "object",
+      "properties": {
+        "slots": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/AvailabilitySlot"
+          }
+        },
+        "reasons": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "code": {
+                "type": "string"
+              },
+              "message": {
+                "type": "string"
+              }
+            },
+            "required": ["code", "message"],
+            "additionalProperties": false
+          }
+        },
+        "timezone": {
+          "type": "string"
+        },
+        "hold_minutes": {
+          "type": "integer"
+        },
+        "advisory": {
+          "const": true
+        }
+      },
+      "required": ["slots", "reasons", "timezone", "hold_minutes", "advisory"],
+      "additionalProperties": false
+    }
+  }
+}

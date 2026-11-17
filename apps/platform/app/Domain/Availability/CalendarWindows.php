@@ -5,16 +5,41 @@ namespace App\Domain\Availability;
 use App\Domain\Resources\Resource;
 use App\Domain\Resources\ResourceRegistry;
 use Carbon\CarbonImmutable;
+use Illuminate\Support\Collection;
 use InvalidArgumentException;
 
 final class CalendarWindows implements OperatingCalendar
 {
+    private ?Collection $weeklyRows = null;
+
+    private ?Collection $overrideRows = null;
+
+    private ?Collection $blockRows = null;
+
+    private ?array $eligibleIds = null;
+
+    public function batch(CarbonImmutable $from, CarbonImmutable $until, array $resources): array
+    {
+        $copy = clone $this;
+        $ids = array_map(fn ($r) => $r->id, $resources);
+        $copy->weeklyRows = WorkingSchedule::where(fn ($q) => $q->whereNull('resource_id')->orWhereIn('resource_id', $ids))->where('active', true)->get();
+        $copy->overrideRows = ScheduleOverride::where(fn ($q) => $q->whereNull('resource_id')->orWhereIn('resource_id', $ids))->whereBetween('date', [$from->subDays(2)->toDateString(), $until->addDays(2)->toDateString()])->get();
+        $copy->blockRows = ResourceBlock::whereIn('resource_id', $ids)->where('starts_at', '<', $until)->where('ends_at', '>', $from)->orderBy('starts_at')->get();
+        $copy->eligibleIds = app(ResourceRegistry::class)->eligible()->whereIn('id', $ids)->pluck('id')->all();
+        $result = [];
+        foreach ($resources as $resource) {
+            $result[$resource->id] = $copy->windows($from, $until, $resource);
+        }
+
+        return $result;
+    }
+
     public function windows(CarbonImmutable $from, CarbonImmutable $until, ?Resource $resource = null): array
     {
         if ($until <= $from || $from->diffInDays($until) > 93) {
             throw new InvalidArgumentException('Query a positive interval of at most 93 days.');
         }
-        if ($resource && ! app(ResourceRegistry::class)->eligible()->whereKey($resource->id)->exists()) {
+        if ($resource && ! ($this->eligibleIds !== null ? in_array($resource->id, $this->eligibleIds, true) : app(ResourceRegistry::class)->eligible()->whereKey($resource->id)->exists())) {
             return [];
         }
         $company = $this->scopeWindows($from, $until, null);
@@ -30,7 +55,7 @@ final class CalendarWindows implements OperatingCalendar
                 }
             }
         }
-        $blocks = ResourceBlock::where('resource_id', $resource->id)->where('starts_at', '<', $until)->where('ends_at', '>', $from)->orderBy('starts_at')->get();
+        $blocks = $this->blockRows?->where('resource_id', $resource->id) ?? ResourceBlock::where('resource_id', $resource->id)->where('starts_at', '<', $until)->where('ends_at', '>', $from)->orderBy('starts_at')->get();
         foreach ($blocks as $block) {
             $next = [];
             foreach ($windows as [$a,$b]) {
@@ -51,8 +76,8 @@ final class CalendarWindows implements OperatingCalendar
 
     private function scopeWindows(CarbonImmutable $from, CarbonImmutable $until, ?int $resourceId): array
     {
-        $weekly = WorkingSchedule::where('resource_id', $resourceId)->where('active', true)->get();
-        $overrides = ScheduleOverride::where('resource_id', $resourceId)->whereBetween('date', [$from->subDays(2)->toDateString(), $until->addDays(2)->toDateString()])->get();
+        $weekly = $this->weeklyRows?->where('resource_id', $resourceId) ?? WorkingSchedule::where('resource_id', $resourceId)->where('active', true)->get();
+        $overrides = $this->overrideRows?->where('resource_id', $resourceId) ?? ScheduleOverride::where('resource_id', $resourceId)->whereBetween('date', [$from->subDays(2)->toDateString(), $until->addDays(2)->toDateString()])->get();
         $zones = $weekly->pluck('timezone')->merge($overrides->pluck('timezone'))->unique();
         $windows = [];
         $resolver = app(LocalTimeResolver::class);

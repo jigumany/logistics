@@ -2,6 +2,7 @@
 
 namespace App\Domain\Quotes;
 
+use App\Domain\Bookings\GuestBookingLinks;
 use App\Domain\Pricing\PriceBook;
 use App\Domain\Tenancy\TenantContext;
 use Illuminate\Support\Facades\URL;
@@ -26,6 +27,7 @@ final class GuestQuoteLinks
             $links[$operation] = URL::temporarySignedRoute('quote.guest.operation', $quote->access_expires_at, [...$parameters, 'operation' => $operation]);
         }
         $links['pdf'] = URL::temporarySignedRoute('quote.guest.pdf', $quote->access_expires_at, $parameters);
+        $links['booking'] = app(GuestBookingLinks::class)->forQuote($quote)['view'];
         $links['revisions'] = URL::temporarySignedRoute('quote.guest.revisions', $quote->access_expires_at, $parameters);
 
         return $links;

@@ -39,6 +39,20 @@ export default function CompanyLayout({ children }: PropsWithChildren) {
         {
             label: "Operations",
             items: [
+                ...(["owner", "admin", "dispatcher"].includes(auth.role ?? "")
+                    ? [
+                          {
+                              path: "bookings",
+                              label: "Bookings",
+                              icon: "file" as const,
+                          },
+                          {
+                              path: "planner",
+                              label: "Operations planner",
+                              icon: "calendar" as const,
+                          },
+                      ]
+                    : []),
                 { path: "fleet", label: "Fleet", icon: "truck" },
                 { path: "zones", label: "Service areas", icon: "map" },
                 { path: "depots", label: "Depots", icon: "depot" },

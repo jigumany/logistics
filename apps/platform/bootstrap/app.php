@@ -1,5 +1,6 @@
 <?php
 
+use App\Domain\Bookings\BookingConflict;
 use App\Http\Middleware\HandleInertiaRequests;
 use App\Http\Middleware\RequestContext;
 use App\Http\Middleware\ResolvePublicTenant;
@@ -19,5 +20,6 @@ return Application::configure(basePath: dirname(__DIR__))
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->shouldRenderJsonWhen(fn (Request $request) => $request->is('api/*') || $request->expectsJson());
+        $exceptions->render(fn (BookingConflict $error, Request $request) => response()->json(['message' => $error->getMessage(), 'reasons' => $error->reasons, 'alternative_action' => 'search_availability'], 409));
         $exceptions->dontFlash(['password', 'password_confirmation', 'current_password']);
     })->create();

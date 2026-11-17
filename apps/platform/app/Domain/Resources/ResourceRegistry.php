@@ -3,6 +3,7 @@
 namespace App\Domain\Resources;
 
 use App\Domain\Fleet\Vehicle;
+use App\Domain\Resources\Resource as RegisteredResource;
 use App\Domain\Tenancy\CompanySettings;
 use Illuminate\Database\Eloquent\Builder;
 
@@ -31,9 +32,10 @@ final class ResourceRegistry
         Resource::updateOrCreate(['staff_id' => $staff->id], ['kind' => $staff->role, 'active' => ($staff->role !== 'driver' || ($staff->licence_category && ($staff->licence_expires_on && $staff->licence_expires_on->toDateString() >= $this->today()) && $staff->eligibleClasses()->exists())) && $staff->active && in_array($staff->engagement_status, ['employed', 'contractor'], true) && $staff->archived_at === null]);
     }
 
+    /** @return Builder<RegisteredResource> */
     public function eligible(): Builder
     {
-        return Resource::query()->where('active', true)->where(function (Builder $q): void {
+        return RegisteredResource::query()->where('active', true)->where(function (Builder $q): void {
             $q->whereHas('vehicle', fn (Builder $v) => $v->whereNull('archived_at')->where('status', 'available')->where('capacity_verified', true)->whereNotNull('capacity_verified_at'))->orWhereHas('staff', fn (Builder $s) => $s->whereNull('archived_at')->where('active', true)->whereIn('engagement_status', ['employed', 'contractor'])->where(fn (Builder $qualified) => $qualified->where('role', 'mover')->orWhere(fn (Builder $driver) => $driver->where('role', 'driver')->whereNotNull('licence_category')->whereDate('licence_expires_on', '>=', $this->today())->whereHas('eligibleClasses'))));
         });
     }

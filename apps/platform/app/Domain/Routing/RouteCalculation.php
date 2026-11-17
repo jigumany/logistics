@@ -7,6 +7,7 @@ use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Model;
 
 /**
+ * @property int|null $duration_seconds
  * @property int $quote_id
  * @property int $id
  * @property int $tenant_id

@@ -103,7 +103,7 @@ test("administrator edits demo rates, compares versions and simulates an itemise
     .fill("170");
   await page.getByRole("button", { name: "Continue", exact: true }).click();
   const date = new Date(Date.now() + 7 * 86400000);
-  while (date.getDay() !== 1) date.setDate(date.getDate() + 1);
+  while (date.getUTCDay() !== 1) date.setUTCDate(date.getUTCDate() + 1);
   await page
     .getByLabel("Preferred moving date", { exact: true })
     .fill(date.toISOString().slice(0, 10));

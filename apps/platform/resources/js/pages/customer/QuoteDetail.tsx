@@ -129,6 +129,21 @@ export default function QuoteDetail({
                     {error}
                 </p>
             )}
+            {quote.status === "accepted" && quote.links.booking && (
+                <Card className="mb-6">
+                    <h2 className="text-xl font-semibold">
+                        Reserve your moving time
+                    </h2>
+                    <p className="my-3 text-sm text-slate-500">
+                        Your accepted quote does not allocate a truck. Check
+                        real availability, hold the complete resource
+                        combination and follow the confirmation requirements.
+                    </p>
+                    <Button asChild>
+                        <a href={quote.links.booking}>Choose a booking time</a>
+                    </Button>
+                </Card>
+            )}
             <QuoteSummary quote={quote} />
             <div className="mt-6 grid gap-5">
                 {canAccept && (

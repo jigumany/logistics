@@ -6,13 +6,14 @@ use App\Domain\Tenancy\BelongsToTenant;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
+/** @property array|null $booking_rules */
 class TenantService extends Model
 {
     use BelongsToTenant;
 
     protected $table = 'tenant_services';
 
-    protected $fillable = ['code', 'name', 'enabled', 'description', 'notice_minutes', 'restrictions', 'manual_approval', 'publicly_bookable', 'active', 'service_type_id'];
+    protected $fillable = ['booking_rules', 'code', 'name', 'enabled', 'description', 'notice_minutes', 'restrictions', 'manual_approval', 'publicly_bookable', 'active', 'service_type_id'];
 
     protected $hidden = ['id', 'tenant_id', 'service_type_id'];
 
@@ -33,6 +34,6 @@ class TenantService extends Model
 
     protected function casts(): array
     {
-        return ['enabled' => 'boolean', 'manual_approval' => 'boolean', 'publicly_bookable' => 'boolean', 'active' => 'boolean', 'notice_minutes' => 'integer'];
+        return ['booking_rules' => 'array', 'enabled' => 'boolean', 'manual_approval' => 'boolean', 'publicly_bookable' => 'boolean', 'active' => 'boolean', 'notice_minutes' => 'integer'];
     }
 }

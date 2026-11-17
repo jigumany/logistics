@@ -353,6 +353,21 @@ export default function Show({
             )}
             <div className="grid items-start gap-6 lg:grid-cols-[1.15fr_1fr]">
                 <div>
+                    {quote.status === "accepted" && (
+                        <Card className="mb-6">
+                            <a
+                                className="font-semibold text-teal-800 underline"
+                                href={
+                                    "/c/" +
+                                    company?.slug +
+                                    "/bookings/quote/" +
+                                    quote.public_id
+                                }
+                            >
+                                Prepare or manage booking
+                            </a>
+                        </Card>
+                    )}
                     <QuoteSummary quote={quote} />
                     <Card className="mt-6">
                         <h2 className="text-xl font-bold">

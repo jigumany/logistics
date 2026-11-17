@@ -23,6 +23,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property CarbonImmutable|null $submitted_at
  * @property CarbonImmutable|null $accepted_at
  * @property CarbonImmutable $access_expires_at
+ * @property Carbon $created_at
  * @property Carbon $updated_at
  * @property-read QuoteRevision|null $currentRevision
  */
