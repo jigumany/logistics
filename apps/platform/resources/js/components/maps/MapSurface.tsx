@@ -3,6 +3,8 @@ import type * as Leaflet from "leaflet";
 import "leaflet/dist/leaflet.css";
 export type PolygonBoundary = { type: "Polygon"; coordinates: number[][][] };
 export interface MapSurfaceProps {
+    heightClassName?: string;
+    polygonColors?: string[];
     boundary?: PolygonBoundary | null;
     polygons?: PolygonBoundary[];
     points?: { latitude: number; longitude: number; label?: string }[];
@@ -19,6 +21,7 @@ export default function MapSurface(props: MapSurfaceProps) {
     const [draft, setDraft] = useState<number[][]>([]);
     const [ready, setReady] = useState(false);
     const [error, setError] = useState(false);
+    const [tileError, setTileError] = useState(false);
     useEffect(() => {
         let destroyed = false;
         import("leaflet")
@@ -29,7 +32,7 @@ export default function MapSurface(props: MapSurfaceProps) {
                     10,
                 );
                 map.current = instance;
-                L.tileLayer(
+                const tiles = L.tileLayer(
                     import.meta.env.VITE_MAP_TILE_URL ||
                         "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
                     {
@@ -37,6 +40,9 @@ export default function MapSurface(props: MapSurfaceProps) {
                         maxZoom: 19,
                     },
                 ).addTo(instance);
+                tiles.on("tileerror", () => {
+                    if (!destroyed) setTileError(true);
+                });
                 layers.current = L.layerGroup().addTo(instance);
                 instance.on("click", (event) => {
                     if (latest.current.editing === "polygon")
@@ -63,6 +69,7 @@ export default function MapSurface(props: MapSurfaceProps) {
         };
     }, []);
     const content = JSON.stringify([
+        props.polygonColors,
         props.boundary,
         props.polygons,
         props.points,
@@ -78,9 +85,14 @@ export default function MapSurface(props: MapSurfaceProps) {
                 ...(latest.current.polygons ?? []),
                 ...(latest.current.boundary ? [latest.current.boundary] : []),
             ];
-            for (const polygon of polygons) {
+            for (const [index, polygon] of polygons.entries()) {
                 L.geoJSON(polygon as GeoJSON.GeoJsonObject, {
-                    style: { color: "#0f766e", weight: 2 },
+                    style: {
+                        color:
+                            latest.current.polygonColors?.[index] ?? "#0f766e",
+                        weight: 2,
+                        fillOpacity: 0.15,
+                    },
                 }).addTo(group);
             }
             for (const point of latest.current.points ?? []) {
@@ -111,9 +123,22 @@ export default function MapSurface(props: MapSurfaceProps) {
         <div className="grid gap-3">
             <div
                 ref={element}
-                className="relative z-0 h-80 w-full rounded-lg border border-slate-300"
+                className={
+                    "relative z-0 w-full rounded-lg border border-slate-300 " +
+                    (props.heightClassName ?? "h-80")
+                }
                 aria-label="Service area and depot map"
             />
+            {tileError && (
+                <p
+                    aria-live="polite"
+                    className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800"
+                >
+                    The base map could not load. Saved boundaries and
+                    coordinates remain available. Check your connection or map
+                    tile configuration.
+                </p>
+            )}
             {error && (
                 <p role="alert">
                     The map could not load. Use the coordinate or GeoJSON

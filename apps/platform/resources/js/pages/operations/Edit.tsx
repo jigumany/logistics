@@ -53,9 +53,50 @@ function Editor({ module, record, companyTimezone }: Props) {
         module === "settings"
             ? base + "/settings"
             : base + "/" + module + (record ? "/" + record.public_id : "");
-    const groups = [
-        ...new Set(config.fields.map((field) => field.group ?? "Details")),
-    ];
+    const fieldGroup = (field: Field) => {
+        if (module === "fleet") {
+            if (
+                [
+                    "name",
+                    "registration_number",
+                    "vehicle_type_key",
+                    "make",
+                    "model",
+                    "manufacture_year",
+                ].includes(field.name)
+            )
+                return "Vehicle identity";
+            if (["status", "depot_public_id"].includes(field.name))
+                return "Operational readiness";
+            if (
+                field.name.includes("cargo_") ||
+                field.name.includes("max_item_") ||
+                [
+                    "usable_volume_m3",
+                    "payload_kg",
+                    "capacity_margin_basis_points",
+                ].includes(field.name)
+            )
+                return "Cargo & capacity";
+            return "Restrictions & notes";
+        }
+        if (module === "staff") {
+            if (["full_name", "email", "phone"].includes(field.name))
+                return "Personal details";
+            if (
+                [
+                    "licence_category",
+                    "licence_expires_on",
+                    "qualifications",
+                    "eligible_vehicle_classes",
+                ].includes(field.name)
+            )
+                return "Driver qualifications";
+            return "Role & employment";
+        }
+        return field.group ?? "Details";
+    };
+    const groups = [...new Set(config.fields.map(fieldGroup))];
     const submit = () => {
         form.transform((data) => {
             const next = { ...data };
@@ -289,7 +330,7 @@ function Editor({ module, record, companyTimezone }: Props) {
                             ← {config.title}
                         </Link>
                     )}
-                    <h1 className="text-2xl font-bold">
+                    <h1 className="text-3xl font-semibold tracking-tight">
                         {module === "settings"
                             ? config.title
                             : (record ? "Edit " : "Add ") +
@@ -336,13 +377,21 @@ function Editor({ module, record, companyTimezone }: Props) {
             >
                 {groups.map((group) => (
                     <Card key={group}>
-                        <h2 className="mb-6 text-lg font-semibold">{group}</h2>
+                        <div className="mb-6 border-b border-slate-100 pb-4">
+                            <h2 className="text-base font-semibold">{group}</h2>
+                            <p className="mt-1 text-xs text-slate-400">
+                                {group === "Cargo & capacity"
+                                    ? "Use verified internal measurements and safe working limits."
+                                    : group === "Vehicle identity"
+                                      ? "Identify this vehicle across your company operation."
+                                      : group === "Operational readiness"
+                                        ? "Choose the home depot and current operating status."
+                                        : "Keep your company records complete and up to date."}
+                            </p>
+                        </div>
                         <div className="grid gap-6 sm:grid-cols-2">
                             {config.fields
-                                .filter(
-                                    (field) =>
-                                        (field.group ?? "Details") === group,
-                                )
+                                .filter((field) => fieldGroup(field) === group)
                                 .map(fieldControl)}
                         </div>
                         {module === "depots" && (
@@ -397,7 +446,7 @@ function Editor({ module, record, companyTimezone }: Props) {
                     </p>
                 )}
                 {canEdit && (
-                    <div className="flex items-center gap-4">
+                    <div className="sticky bottom-4 z-20 flex flex-wrap items-center gap-4 rounded-xl border border-slate-200 bg-white/95 p-4 shadow-lg shadow-slate-200/60 backdrop-blur">
                         <Button disabled={form.processing}>
                             {form.processing
                                 ? "Saving…"

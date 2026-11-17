@@ -3,10 +3,13 @@ import { useState } from "react";
 import { Button, Card } from "@logistics/design-system";
 import type { SharedProps } from "@logistics/types";
 import CompanyLayout from "../../layouts/CompanyLayout";
+import Icon from "../../components/Icon";
+import OperationalOverview from "../../components/OperationalOverview";
+import ZoneWorkspace from "../../components/ZoneWorkspace";
+import WeeklySchedule from "../../components/WeeklySchedule";
+import type { OperationalSummary } from "../../features/operations/types";
 import LookupSelect from "../../components/LookupSelect";
-import MapSurface, {
-    type PolygonBoundary,
-} from "../../components/maps/MapSurface";
+import MapSurface from "../../components/maps/MapSurface";
 import {
     modules,
     humanize,
@@ -17,7 +20,9 @@ export default function Index({
     module,
     records,
     filters,
+    summary = [],
 }: {
+    summary?: OperationalSummary;
     module: string;
     records: {
         data: RecordRow[];
@@ -34,8 +39,86 @@ export default function Index({
     const base = "/c/" + company?.slug;
     const canEdit = auth.role === "owner" || auth.role === "admin";
     const [search, setSearch] = useState(filters.search ?? "");
+    const descriptions: Record<string, string> = {
+        fleet: "Your vehicles, capacity and readiness. Everything you need to keep moving.",
+        zones: "Define your operating footprint and the areas that need a closer look.",
+        staff: "The people behind every move. Manage drivers, movers and their details.",
+        depots: "Your operational bases, verified locations and fleet homes.",
+        "calendar/weekly":
+            "Bring your team and fleet working hours into one clear view.",
+        "calendar/overrides":
+            "Manage holidays, closures and exceptions to normal working hours.",
+        "calendar/blocks":
+            "Plan maintenance, leave and periods when resources are unavailable.",
+    };
     const display = (row: RecordRow, column: string) => {
         const value = row[column];
+        if (value === null || value === undefined)
+            return column === "resource_name" ? "Company" : "—";
+        if (column === "status")
+            return (
+                <span
+                    className={
+                        "status-badge " +
+                        (value === "available"
+                            ? "status-good"
+                            : value === "maintenance"
+                              ? "status-warning"
+                              : "status-neutral")
+                    }
+                >
+                    <span className="h-1.5 w-1.5 rounded-full bg-current" />
+                    {humanize(String(value))}
+                </span>
+            );
+        if (column === "name" || column === "full_name")
+            return (
+                <div className="flex min-w-40 items-center gap-3">
+                    {module === "fleet" ? (
+                        row.has_photo ? (
+                            <img
+                                alt=""
+                                src={base + "/media/vehicle/" + row.public_id}
+                                className="h-10 w-12 rounded-lg border border-slate-200 object-cover"
+                            />
+                        ) : (
+                            <span className="flex h-10 w-12 items-center justify-center rounded-lg bg-slate-50 text-slate-400">
+                                <Icon name="truck" />
+                            </span>
+                        )
+                    ) : module === "staff" ? (
+                        <span className="flex h-10 w-10 items-center justify-center rounded-full bg-indigo-50 font-semibold text-indigo-600">
+                            {String(value).slice(0, 1)}
+                        </span>
+                    ) : null}
+                    <span>
+                        <span className="block font-semibold text-slate-800">
+                            {String(value)}
+                        </span>
+                        {module === "fleet" && (
+                            <span className="mt-1 block text-[11px] text-slate-400">
+                                {String(row.vehicle_type_name ?? "Vehicle")}
+                            </span>
+                        )}
+                    </span>
+                </div>
+            );
+        if (column === "usable_volume_m3")
+            return (
+                <span className="whitespace-nowrap font-medium">
+                    {Number(value).toLocaleString(undefined, {
+                        maximumFractionDigits: 2,
+                    })}{" "}
+                    <span className="text-xs text-slate-400">m³</span>
+                </span>
+            );
+        if (column === "payload_kg")
+            return (
+                <span className="whitespace-nowrap font-medium">
+                    {Number(value).toLocaleString()}{" "}
+                    <span className="text-xs text-slate-400">kg</span>
+                </span>
+            );
         if (typeof value === "boolean")
             return (
                 <span
@@ -49,8 +132,7 @@ export default function Index({
                     {value ? "Yes" : "No"}
                 </span>
             );
-        if (value === null || value === undefined)
-            return column === "resource_name" ? "Company" : "—";
+
         return column === "weekday"
             ? weekdayName(String(value))
             : String(value);
@@ -60,22 +142,40 @@ export default function Index({
             <Head title={config.title} />
             <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
                 <div>
-                    <h1 className="text-2xl font-bold">{config.title}</h1>
+                    <p className="mb-2 text-[10px] font-bold uppercase tracking-[.18em] text-teal-700">
+                        {module.startsWith("calendar/")
+                            ? "Operations planner"
+                            : "Company operations"}
+                    </p>
+                    <h1 className="text-3xl font-semibold tracking-tight text-[#172b4d]">
+                        {config.title}
+                    </h1>
                     <p className="mt-2 text-sm text-slate-500">
-                        {records.total} records ·{" "}
-                        {canEdit
-                            ? "Manage your company configuration."
-                            : "Read access to your company operation."}
+                        {descriptions[module] ??
+                            "Manage your company configuration and operating preferences."}
                     </p>
                 </div>
                 {canEdit && config.creatable !== false && (
                     <Button asChild>
                         <Link href={base + "/" + module + "/create"}>
+                            <Icon name="plus" className="mr-2 h-4 w-4" />
                             Add {config.singular.toLowerCase()}
                         </Link>
                     </Button>
                 )}
             </div>
+            {summary.length > 0 && (
+                <OperationalOverview
+                    items={summary}
+                    icon={
+                        module === "fleet"
+                            ? "truck"
+                            : module === "zones"
+                              ? "map"
+                              : "users"
+                    }
+                />
+            )}
             {module.startsWith("calendar/") && (
                 <nav
                     aria-label="Calendar sections"
@@ -83,7 +183,17 @@ export default function Index({
                 >
                     {["weekly", "overrides", "blocks"].map((kind) => (
                         <Link
-                            className="rounded border bg-white px-4 py-2"
+                            aria-current={
+                                module === "calendar/" + kind
+                                    ? "page"
+                                    : undefined
+                            }
+                            className={
+                                "rounded-lg px-4 py-2.5 text-xs font-semibold " +
+                                (module === "calendar/" + kind
+                                    ? "bg-[#172b4d] text-white"
+                                    : "border border-slate-200 bg-white text-slate-500 hover:bg-slate-50")
+                            }
                             href={base + "/calendar/" + kind}
                             key={kind}
                         >
@@ -112,7 +222,7 @@ export default function Index({
             )}
             {!module.startsWith("calendar/") && (
                 <form
-                    className="mb-5 flex flex-wrap items-end gap-3"
+                    className="mb-5 flex flex-wrap items-end gap-3 rounded-xl border border-slate-200 bg-white p-4"
                     onSubmit={(event) => {
                         event.preventDefault();
                         router.get(
@@ -127,7 +237,13 @@ export default function Index({
                         <input
                             value={search}
                             onChange={(event) => setSearch(event.target.value)}
-                            placeholder="Search records…"
+                            placeholder={
+                                module === "fleet"
+                                    ? "Search vehicles or registrations…"
+                                    : "Search " +
+                                      config.title.toLowerCase() +
+                                      "…"
+                            }
                         />
                     </label>
                     {config.statuses && (
@@ -182,98 +298,108 @@ export default function Index({
                     <Button type="submit">Search</Button>
                 </form>
             )}
-            {(module === "zones" || module === "depots") &&
-                records.data.length > 0 && (
-                    <Card className="mb-6">
-                        <MapSurface
-                            polygons={
-                                module === "zones"
-                                    ? records.data.map(
-                                          (row) =>
-                                              row.boundary as PolygonBoundary,
-                                      )
-                                    : []
-                            }
-                            points={
-                                module === "depots"
-                                    ? records.data.map((row) => ({
-                                          latitude: Number(row.latitude),
-                                          longitude: Number(row.longitude),
-                                          label: String(row.name),
-                                      }))
-                                    : []
-                            }
-                        />
-                        <p className="mt-3 text-xs text-slate-500">
-                            Showing locations from this page. Example service
-                            areas are not verified operating coverage.
-                        </p>
-                    </Card>
-                )}
-            <Card className="overflow-hidden p-0">
-                {!records.data.length ? (
-                    <div className="p-10 text-center">
-                        <h2 className="font-semibold">No records found</h2>
-                        <p className="mt-2 text-sm text-slate-500">
-                            {search
-                                ? "Try another search or clear the filters."
-                                : canEdit
-                                  ? "Add your first record to configure this part of your operation."
-                                  : "A company administrator can add records here."}
-                        </p>
-                    </div>
-                ) : (
-                    <div className="overflow-x-auto">
-                        <table className="w-full text-left text-sm">
-                            <thead className="bg-slate-50 text-xs text-slate-500">
-                                <tr>
-                                    {config.columns.map((column) => (
-                                        <th
-                                            className="whitespace-nowrap px-5 py-4"
-                                            key={column}
-                                        >
-                                            {humanize(column)}
-                                        </th>
-                                    ))}
-                                    <th className="px-5 py-4">Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {records.data.map((row) => (
-                                    <tr
-                                        className="border-t border-slate-100"
-                                        key={row.public_id}
-                                    >
+            {module === "depots" && records.data.length > 0 && (
+                <Card className="mb-6">
+                    <MapSurface
+                        points={
+                            module === "depots"
+                                ? records.data.map((row) => ({
+                                      latitude: Number(row.latitude),
+                                      longitude: Number(row.longitude),
+                                      label: String(row.name),
+                                  }))
+                                : []
+                        }
+                    />
+                    <p className="mt-3 text-xs text-slate-500">
+                        Showing locations from this page. Example service areas
+                        are not verified operating coverage.
+                    </p>
+                </Card>
+            )}
+            {module === "zones" ? (
+                <ZoneWorkspace
+                    rows={records.data}
+                    base={base}
+                    canEdit={canEdit}
+                />
+            ) : module === "calendar/weekly" ? (
+                <WeeklySchedule rows={records.data} base={base} />
+            ) : (
+                <Card className="overflow-hidden p-0">
+                    {!records.data.length ? (
+                        <div className="p-10 text-center">
+                            <h2 className="font-semibold">No records found</h2>
+                            <p className="mt-2 text-sm text-slate-500">
+                                {search
+                                    ? "Try another search or clear the filters."
+                                    : canEdit
+                                      ? "Add your first record to configure this part of your operation."
+                                      : "A company administrator can add records here."}
+                            </p>
+                        </div>
+                    ) : (
+                        <div className="overflow-x-auto">
+                            <table className="w-full text-left text-sm">
+                                <thead className="bg-slate-50 text-xs text-slate-500">
+                                    <tr>
                                         {config.columns.map((column) => (
-                                            <td
-                                                className="max-w-xs px-5 py-4"
+                                            <th
+                                                className="whitespace-nowrap px-5 py-4"
                                                 key={column}
                                             >
-                                                {display(row, column)}
-                                            </td>
+                                                {column === "usable_volume_m3"
+                                                    ? "Cargo volume"
+                                                    : column === "payload_kg"
+                                                      ? "Payload"
+                                                      : column === "depot_name"
+                                                        ? "Depot"
+                                                        : column ===
+                                                            "registration_number"
+                                                          ? "Registration"
+                                                          : humanize(column)}
+                                            </th>
                                         ))}
-                                        <td className="whitespace-nowrap px-5 py-4">
-                                            <Link
-                                                className="font-medium text-teal-800 underline"
-                                                href={
-                                                    base +
-                                                    "/" +
-                                                    module +
-                                                    "/" +
-                                                    row.public_id +
-                                                    "/edit"
-                                                }
-                                            >
-                                                {canEdit ? "Edit" : "View"}
-                                            </Link>
-                                        </td>
+                                        <th className="px-5 py-4">Actions</th>
                                     </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
-                )}
-            </Card>
+                                </thead>
+                                <tbody>
+                                    {records.data.map((row) => (
+                                        <tr
+                                            className="border-t border-slate-100 transition-colors hover:bg-slate-50/70"
+                                            key={row.public_id}
+                                        >
+                                            {config.columns.map((column) => (
+                                                <td
+                                                    className="max-w-xs px-5 py-4"
+                                                    key={column}
+                                                >
+                                                    {display(row, column)}
+                                                </td>
+                                            ))}
+                                            <td className="whitespace-nowrap px-5 py-4">
+                                                <Link
+                                                    className="inline-flex items-center gap-1 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-500 hover:border-teal-300 hover:text-teal-800"
+                                                    href={
+                                                        base +
+                                                        "/" +
+                                                        module +
+                                                        "/" +
+                                                        row.public_id +
+                                                        "/edit"
+                                                    }
+                                                >
+                                                    {canEdit ? "Edit" : "View"}
+                                                </Link>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    )}
+                </Card>
+            )}
             <div className="mt-5 flex items-center justify-between text-sm text-slate-500">
                 <p>
                     {records.from ?? 0}–{records.to ?? 0} of {records.total}

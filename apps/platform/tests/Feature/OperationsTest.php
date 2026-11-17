@@ -233,3 +233,15 @@ it('accepts private raster branding and rejects non-image branding files', funct
     Storage::disk('s3')->assertExists($path);
     $this->post('/c/operations/media/logo/'.$settings->public_id, ['file' => UploadedFile::fake()->create('not-an-image.pdf', 10, 'application/pdf')])->assertSessionHasErrors('file');
 });
+
+it('keeps fleet summary counts scoped to the company and excludes archived vehicles', function (): void {
+    [$tenant, $user] = opTenant();
+    $this->actingAs($user)->post('/c/operations/fleet', opVehiclePayload())->assertSessionHasNoErrors();
+    [$other, $otherUser] = opTenant('other-summary');
+    $this->actingAs($otherUser)->post('/c/other-summary/fleet', opVehiclePayload())->assertSessionHasNoErrors();
+    $this->actingAs($user)->get('/c/operations/fleet')->assertInertia(fn (Assert $page) => $page->component('operations/Index')->where('summary.0.value', 1)->where('summary.1.value', 1));
+    app(TenantContext::class)->set($tenant);
+    $vehicle = Vehicle::firstOrFail();
+    $this->delete('/c/operations/fleet/'.$vehicle->public_id)->assertRedirect();
+    $this->get('/c/operations/fleet')->assertInertia(fn (Assert $page) => $page->where('summary.0.value', 0)->where('summary.1.value', 0));
+});

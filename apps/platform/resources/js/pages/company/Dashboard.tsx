@@ -1,4 +1,4 @@
-import { Head, router, useForm, usePage } from "@inertiajs/react";
+import { Head, Link, router, useForm, usePage } from "@inertiajs/react";
 import { Button, Card } from "@logistics/design-system";
 import type {
     CompanySettings,
@@ -6,6 +6,7 @@ import type {
     SharedProps,
 } from "@logistics/types";
 import { depositBasisPoints } from "../../paymentPreferences";
+import Icon, { type IconName } from "../../components/Icon";
 import CompanyLayout from "../../layouts/CompanyLayout";
 export default function Dashboard({
     settings,
@@ -37,6 +38,59 @@ export default function Dashboard({
                     Manage your company profile, services and payment
                     preferences.
                 </p>
+            </div>
+            <div className="mb-8 grid gap-4 xl:grid-cols-3">
+                {[
+                    {
+                        title: "Fleet management",
+                        text: "Vehicles, cargo measurements, payload and depots.",
+                        path: "fleet",
+                        icon: "truck" as IconName,
+                        tone: "bg-teal-50 text-teal-700",
+                    },
+                    {
+                        title: "Service areas",
+                        text: "Coverage boundaries and areas requiring manual approval.",
+                        path: "zones",
+                        icon: "map" as IconName,
+                        tone: "bg-indigo-50 text-indigo-600",
+                    },
+                    {
+                        title: "Operations management",
+                        text: canEdit
+                            ? "Your people, working hours and resource unavailability."
+                            : "Your operational bases and company configuration.",
+                        path: canEdit ? "calendar/weekly" : "depots",
+                        icon: "calendar" as IconName,
+                        tone: "bg-amber-50 text-amber-600",
+                    },
+                ].map((item) => (
+                    <Link
+                        key={item.path}
+                        href={"/c/" + company?.slug + "/" + item.path}
+                        className="group rounded-xl border border-slate-200 bg-white p-6 shadow-sm transition-all hover:-translate-y-0.5 hover:border-teal-200 hover:shadow-md"
+                    >
+                        <span
+                            className={
+                                "mb-5 inline-flex rounded-xl p-3 " + item.tone
+                            }
+                        >
+                            <Icon name={item.icon} width="24" height="24" />
+                        </span>
+                        <div className="flex items-center justify-between gap-3">
+                            <h2 className="text-base font-semibold">
+                                {item.title}
+                            </h2>
+                            <Icon
+                                name="arrow"
+                                className="text-slate-300 transition-transform group-hover:translate-x-1 group-hover:text-teal-700"
+                            />
+                        </div>
+                        <p className="mt-2 text-xs leading-6 text-slate-500">
+                            {item.text}
+                        </p>
+                    </Link>
+                ))}
             </div>
             <div className="mb-8 grid gap-4 sm:grid-cols-3">
                 {[

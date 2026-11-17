@@ -40,7 +40,12 @@ final class StaffMemberController extends Controller
             $query->where('role', $filters['status']);
         }
 
-        return Inertia::render('operations/Index', ['module' => 'staff', 'records' => $query->orderBy('id', 'desc')->paginate(20)->withQueryString()->through(fn ($row) => OperationalRecord::make($row)), 'filters' => $filters]);
+        return Inertia::render('operations/Index', ['summary' => [
+            ['label' => 'Team members', 'value' => StaffMember::whereNull('archived_at')->count(), 'hint' => 'Company team · excludes archived records'],
+            ['label' => 'Active drivers', 'value' => StaffMember::whereNull('archived_at')->where('active', true)->where('role', 'driver')->count(), 'hint' => 'Driver records marked active'],
+            ['label' => 'Active movers', 'value' => StaffMember::whereNull('archived_at')->where('active', true)->where('role', 'mover')->count(), 'hint' => 'Mover records marked active'],
+            ['label' => 'Inactive members', 'value' => StaffMember::whereNull('archived_at')->where('active', false)->count(), 'hint' => 'Team records marked inactive'],
+        ], 'module' => 'staff', 'records' => $query->orderBy('id', 'desc')->paginate(20)->withQueryString()->through(fn ($row) => OperationalRecord::make($row)), 'filters' => $filters]);
     }
 
     public function create(Request $request): Response

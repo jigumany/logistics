@@ -39,7 +39,12 @@ final class ServiceZoneController extends Controller
             $query->where('active', $filters['status'] === 'active');
         }
 
-        return Inertia::render('operations/Index', ['module' => 'zones', 'records' => $query->orderBy('id', 'desc')->paginate(20)->withQueryString()->through(fn ($row) => OperationalRecord::make($row)), 'filters' => $filters]);
+        return Inertia::render('operations/Index', ['summary' => [
+            ['label' => 'Service areas', 'value' => ServiceZone::count(), 'hint' => 'All configured company territories'],
+            ['label' => 'Active coverage areas', 'value' => ServiceZone::where('active', true)->where('example_only', false)->count(), 'hint' => 'Enabled areas · excludes examples'],
+            ['label' => 'Manual approval areas', 'value' => ServiceZone::where('active', true)->where('example_only', false)->where('manual_review', true)->count(), 'hint' => 'Active areas requiring an operator review'],
+            ['label' => 'Inactive / examples', 'value' => ServiceZone::where(fn ($q) => $q->where('active', false)->orWhere('example_only', true))->count(), 'hint' => 'Excluded from operational coverage'],
+        ], 'module' => 'zones', 'records' => $query->orderBy('id', 'desc')->paginate(20)->withQueryString()->through(fn ($row) => OperationalRecord::make($row)), 'filters' => $filters]);
     }
 
     public function create(Request $request): Response

@@ -40,7 +40,12 @@ final class VehicleController extends Controller
             $query->where('status', $filters['status']);
         }
 
-        return Inertia::render('operations/Index', ['module' => 'fleet', 'records' => $query->orderBy('id', 'desc')->paginate(20)->withQueryString()->through(fn ($row) => OperationalRecord::make($row)), 'filters' => $filters]);
+        return Inertia::render('operations/Index', ['summary' => [
+            ['label' => 'Total vehicles', 'value' => Vehicle::whereNull('archived_at')->count(), 'hint' => 'Current fleet · excludes archived vehicles'],
+            ['label' => 'Available', 'value' => Vehicle::whereNull('archived_at')->where('status', 'available')->count(), 'hint' => 'Availability still requires a calendar check'],
+            ['label' => 'In maintenance', 'value' => Vehicle::whereNull('archived_at')->where('status', 'maintenance')->count(), 'hint' => 'Vehicles marked for maintenance'],
+            ['label' => 'Inactive / out of service', 'value' => Vehicle::whereNull('archived_at')->whereIn('status', ['inactive', 'out_of_service'])->count(), 'hint' => 'Not ready for operational use'],
+        ], 'module' => 'fleet', 'records' => $query->orderBy('id', 'desc')->paginate(20)->withQueryString()->through(fn ($row) => OperationalRecord::make($row)), 'filters' => $filters]);
     }
 
     public function create(Request $request): Response
