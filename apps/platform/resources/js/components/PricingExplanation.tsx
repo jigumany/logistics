@@ -21,7 +21,8 @@ export default function PricingExplanation({
                     ["Calculated at", snap.calculated_at],
                     [
                         "Price book",
-                        snap.price_book_public_id ??
+                        snap.price_book_name ??
+                            snap.price_book_public_id ??
                             snap.source_price_book?.price_book_public_id ??
                             (snap.manual_override
                                 ? "Authorised manual revision"
@@ -48,6 +49,54 @@ export default function PricingExplanation({
                     </div>
                 ))}
             </dl>
+            {snap.readiness && (
+                <details
+                    open
+                    className="mt-5 rounded-lg bg-amber-50 p-4 text-sm"
+                >
+                    <summary className="font-semibold">
+                        Readiness: {snap.readiness.state.replaceAll("_", " ")}
+                    </summary>
+                    <ul className="mt-3 list-disc pl-5">
+                        {snap.readiness.checks
+                            .filter((check) => !check.passed)
+                            .map((check) => (
+                                <li key={check.code}>{check.label}</li>
+                            ))}
+                    </ul>
+                </details>
+            )}
+            {snap.surcharge_basis === "charges_subtotal" && (
+                <p className="mt-4 text-sm">
+                    Percentage surcharges independently use the same base,
+                    distance and labour subtotal:{" "}
+                    {money(snap.surcharge_base_minor ?? 0, revision.currency)}.
+                </p>
+            )}
+            {snap.rules && (
+                <details className="mt-4">
+                    <summary className="cursor-pointer font-semibold">
+                        Applied rule identifiers and quantities
+                    </summary>
+                    <ul className="mt-3 text-xs">
+                        {snap.rules
+                            .filter((rule) =>
+                                revision.lines.some(
+                                    (line) => line.code === rule.code,
+                                ),
+                            )
+                            .map((rule) => (
+                                <li className="py-1" key={rule.code}>
+                                    {rule.code} · {rule.label} ·{" "}
+                                    {rule.metric
+                                        ? (snap.metrics?.[rule.metric] ??
+                                          "Unknown quantity")
+                                        : rule.stage}
+                                </li>
+                            ))}
+                    </ul>
+                </details>
+            )}
             {snap.calculation_failures?.length ? (
                 <ul className="mt-4 grid gap-2 rounded-lg bg-amber-50 p-4 text-xs text-amber-800">
                     {snap.calculation_failures.map((failure, i) => (

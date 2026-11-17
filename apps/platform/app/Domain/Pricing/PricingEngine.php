@@ -8,22 +8,29 @@ use InvalidArgumentException;
 
 final class PricingEngine
 {
-    public const VERSION = '2';
+    public const VERSION = '3';
 
-    public function calculate(string $currency, array $rules, array $metrics, ?string $vehicleType = null): array
+    public function calculate(string $currency, array $rules, array $metrics, ?string $vehicleType = null, string $surchargeBasis = 'running_subtotal'): array
     {
         if (! in_array($currency, ['ZAR', 'USD', 'EUR', 'GBP'], true)) {
             throw new InvalidArgumentException('Select a supported currency with two minor-unit decimal places.');
         }
+        if (! in_array($surchargeBasis, ['running_subtotal', 'charges_subtotal'], true)) {
+            throw new InvalidArgumentException('Select an explicit surcharge basis.');
+        }
         $rules = (new PricingRules)->validate($rules);
         $subtotal = $tax = 0;
         $taxBase = null;
+        $surchargeBase = null;
         $lines = [];
         // Precedence is contractual: charges, surcharges, sequential discounts, minimum top-up, then independent taxes on the final net subtotal.
         // Unit rates are ten-thousandths of a minor unit; percentage rates are millionths of one. Each displayed line rounds half up before totals are summed.
         foreach ($rules as $rule) {
             if (! empty($rule['vehicle_type_key']) && $rule['vehicle_type_key'] !== $vehicleType) {
                 continue;
+            }
+            if ($rule['stage'] === 'surcharge') {
+                $surchargeBase ??= $subtotal;
             }
             $quantity = BigDecimal::of('1');
             if ($rule['metric'] ?? null) {
@@ -38,7 +45,7 @@ final class PricingEngine
                 $quantity = $rule['kind'] === 'fixed' ? BigDecimal::of('1') : $metric;
             }
             $amount = $rule['kind'] === 'percent'
-                ? BigDecimal::of($rule['stage'] === 'tax' ? ($taxBase ??= $subtotal) : $subtotal)->multipliedBy($rule['rate_micros'])->dividedBy('1000000', 0, RoundingMode::HalfUp)->toInt()
+                ? BigDecimal::of($rule['stage'] === 'tax' ? ($taxBase ??= $subtotal) : ($rule['stage'] === 'surcharge' && $surchargeBasis === 'charges_subtotal' ? $surchargeBase : $subtotal))->multipliedBy($rule['rate_micros'])->dividedBy('1000000', 0, RoundingMode::HalfUp)->toInt()
                 : $quantity->multipliedBy($rule['rate_micros'])->dividedBy('10000', 0, RoundingMode::HalfUp)->toInt();
             if ($rule['stage'] === 'minimum') {
                 $amount = max(0, $amount - $subtotal);
@@ -60,6 +67,6 @@ final class PricingEngine
             $lines[] = ['code' => $rule['code'], 'description' => $rule['label'], 'stage' => $rule['stage'], 'quantity' => (string) $quantity->toScale(6), 'rate_micros' => $rule['rate_micros'], 'amount_minor' => $amount, 'position' => count($lines)];
         }
 
-        return ['engine_version' => self::VERSION, 'currency' => $currency, 'currency_exponent' => 2, 'subtotal_minor' => $subtotal, 'tax_minor' => $tax, 'total_minor' => $subtotal + $tax, 'lines' => $lines, 'metrics' => $metrics, 'rounding' => 'half_up_per_line'];
+        return ['surcharge_basis' => $surchargeBasis, 'surcharge_base_minor' => $surchargeBase, 'engine_version' => self::VERSION, 'currency' => $currency, 'currency_exponent' => 2, 'subtotal_minor' => $subtotal, 'tax_minor' => $tax, 'total_minor' => $subtotal + $tax, 'lines' => $lines, 'metrics' => $metrics, 'rounding' => 'half_up_per_line'];
     }
 }

@@ -10,6 +10,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 /**
+ * @property int|null $simulation_price_book_id
+ * @property array|null $simulation_options
  * @property int $id
  * @property int $tenant_id
  * @property string $public_id
@@ -36,7 +38,7 @@ class Quote extends Model
 
     protected function casts(): array
     {
-        return ['draft_input' => 'array', 'preferred_date' => 'immutable_date', 'submitted_at' => 'immutable_datetime', 'accepted_at' => 'immutable_datetime', 'access_expires_at' => 'immutable_datetime', 'lock_version' => 'integer'];
+        return ['simulation_options' => 'array', 'simulation_price_book_id' => 'integer', 'draft_input' => 'array', 'preferred_date' => 'immutable_date', 'submitted_at' => 'immutable_datetime', 'accepted_at' => 'immutable_datetime', 'access_expires_at' => 'immutable_datetime', 'lock_version' => 'integer'];
     }
 
     public function currentRevision(): BelongsTo

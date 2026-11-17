@@ -2,6 +2,7 @@
 
 namespace App\Domain\Quotes;
 
+use App\Domain\Pricing\PriceBook;
 use App\Domain\Tenancy\TenantContext;
 use Illuminate\Support\Facades\URL;
 
@@ -9,6 +10,16 @@ final class GuestQuoteLinks
 {
     public function forQuote(Quote $quote): array
     {
+        if ($quote->simulation_price_book_id !== null) {
+            $book = PriceBook::whereKey($quote->simulation_price_book_id)->firstOrFail();
+            $base = '/c/'.app(TenantContext::class)->tenant()->slug.'/price-books/'.$book->public_id.'/simulate/'.$quote->public_id;
+            $links = [];
+            foreach (['view', 'save', 'calculate', 'submit', 'accept', 'respond', 'photo', 'pdf', 'revisions', 'decline', 'cancel'] as $action) {
+                $links[$action] = $base.'/'.$action;
+            }
+
+            return $links;
+        }
         $parameters = ['company' => app(TenantContext::class)->tenant()->slug, 'quote' => $quote->public_id];
         $links = ['view' => URL::temporarySignedRoute('quote.guest.view', $quote->access_expires_at, $parameters)];
         foreach (['decline', 'cancel', 'save', 'calculate', 'submit', 'accept', 'respond', 'photo'] as $operation) {

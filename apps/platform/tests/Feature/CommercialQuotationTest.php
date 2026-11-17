@@ -110,7 +110,7 @@ it('reproduces itemised totals from the stored calculation snapshot', function (
     $quote = calculatedQuote($service);
     $snapshot = $quote->currentRevision->pricing_snapshot;
     $replayed = app(PricingEngine::class)->calculate($quote->currentRevision->currency, $snapshot['rules'], $snapshot['metrics'], $snapshot['screened_vehicle_type']);
-    expect($replayed['total_minor'])->toBe($quote->currentRevision->total_minor)->and($snapshot['engine_version'])->toBe('2')->and($snapshot['calculation_id'])->not->toBeEmpty();
+    expect($replayed['total_minor'])->toBe($quote->currentRevision->total_minor)->and($snapshot['engine_version'])->toBe(PricingEngine::VERSION)->and($snapshot['calculation_id'])->not->toBeEmpty();
     expect(array_sum(array_column($replayed['lines'], 'amount_minor')))->toBe($replayed['total_minor']);
 });
 it('hides low-margin reasons behind a general customer review message', function (): void {
@@ -129,6 +129,6 @@ it('requires legacy unissued automatic estimates to recalculate without rewritin
     $quote = $quote->fresh(['currentRevision']);
     expect(fn () => app(SubmitQuote::class)->execute($quote, quoteContact(), $quote->lock_version))->toThrow(ValidationException::class);
     $quote = app(CalculateQuote::class)->execute($quote, $quote->lock_version);
-    expect($quote->currentRevision->public_id)->not->toBe($legacy->public_id)->and($quote->currentRevision->pricing_snapshot['engine_version'])->toBe('2');
+    expect($quote->currentRevision->public_id)->not->toBe($legacy->public_id)->and($quote->currentRevision->pricing_snapshot['engine_version'])->toBe(PricingEngine::VERSION);
     expect($legacy->fresh()->pricing_snapshot)->toHaveKey('engine_version', '1');
 });

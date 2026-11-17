@@ -8,6 +8,7 @@ class PriceBookRequest extends OperationalRequest
     {
         return [
             'service_public_id' => ['required', $this->tenantExists('tenant_services')],
+            'is_demonstration' => ['sometimes', 'boolean'],
             'name' => ['required', 'string', 'max:160'],
             'currency' => ['required', 'in:ZAR,USD,EUR,GBP'],
             'effective_from' => ['required', 'date'],

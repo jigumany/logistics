@@ -12,6 +12,10 @@ final class PricingRules
 
     public const ALL_METRICS = [...self::METRICS, ...self::COMMERCIAL_METRICS];
 
+    public const DEMONSTRATION_METRICS = ['long_carry_stops', 'fragile_jobs', 'waiting_intervals'];
+
+    public const SUPPORTED_METRICS = [...self::ALL_METRICS, ...self::DEMONSTRATION_METRICS];
+
     public const STAGES = ['charge' => 0, 'surcharge' => 1, 'discount' => 2, 'minimum' => 3, 'tax' => 4];
 
     public function validate(array $rules): array
@@ -30,7 +34,7 @@ final class PricingRules
                 throw new InvalidArgumentException('Invalid pricing stage, kind, precision or ordering.');
             }
             if (in_array($rule['stage'], ['charge', 'surcharge'], true)) {
-                if (! in_array($rule['metric'] ?? '', self::ALL_METRICS, true) || ($rule['kind'] === 'percent' && ! ($rule['stage'] === 'surcharge' && in_array($rule['metric'], ['weekend', 'holiday', 'after_hours', 'difficult_access'], true)))) {
+                if (! in_array($rule['metric'] ?? '', self::SUPPORTED_METRICS, true) || ($rule['kind'] === 'percent' && ! ($rule['stage'] === 'surcharge' && in_array($rule['metric'], ['weekend', 'holiday', 'after_hours', 'difficult_access'], true)))) {
                     throw new InvalidArgumentException('Charges require a known quantity metric and a fixed or unit rate.');
                 }
             } elseif (! empty($rule['metric']) || (! empty($rule['vehicle_type_key']) && $rule['stage'] !== 'minimum')) {

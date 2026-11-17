@@ -55,6 +55,9 @@ export default function Index({
                                     <td>{book.service_name}</td>
                                     <td>{book.version}</td>
                                     <td className="capitalize">
+                                        {book.is_demonstration
+                                            ? "Demo · unapproved · "
+                                            : ""}
                                         {book.status}
                                     </td>
                                     <td>{book.currency}</td>

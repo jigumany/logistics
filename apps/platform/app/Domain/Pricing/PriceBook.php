@@ -7,6 +7,8 @@ use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Model;
 
 /**
+ * @property bool $is_demonstration
+ * @property string|null $demonstration_key
  * @property int $id
  * @property int $tenant_id
  * @property string $public_id
@@ -28,6 +30,6 @@ class PriceBook extends Model
 
     protected function casts(): array
     {
-        return ['configuration' => 'array', 'effective_from' => 'immutable_datetime', 'effective_until' => 'immutable_datetime', 'published_at' => 'immutable_datetime', 'version' => 'integer'];
+        return ['is_demonstration' => 'boolean', 'configuration' => 'array', 'effective_from' => 'immutable_datetime', 'effective_until' => 'immutable_datetime', 'published_at' => 'immutable_datetime', 'version' => 'integer'];
     }
 }

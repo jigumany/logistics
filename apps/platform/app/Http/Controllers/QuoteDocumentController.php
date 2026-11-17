@@ -27,6 +27,7 @@ final class QuoteDocumentController extends Controller
 
     private function download(Quote $quote): StreamedResponse|JsonResponse
     {
+        abort_if($quote->simulation_price_book_id !== null, 404);
         abort_unless($quote->submitted_at && $quote->current_revision_id, 404);
         $document = QuoteDocument::where('revision_id', $quote->current_revision_id)->first();
         if (! $document) {

@@ -22,8 +22,18 @@ export interface InternalRevision extends QuoteRevisionData {
         tenant_public_id?: string;
         service_public_id?: string;
         price_book_public_id?: string;
+        price_book_name?: string;
+        is_demonstration?: boolean;
+        surcharge_basis?: string;
+        surcharge_base_minor?: number | null;
+        rules?: PriceRule[];
         screened_vehicle_type?: string;
         internal_costs?: InternalCostEstimate;
+        readiness?: {
+            state: string;
+            automatic_ready: boolean;
+            checks: { code: string; label: string; passed: boolean }[];
+        };
         route_snapshot?: Record<string, string | number | null>;
         quantity_status?: string;
         distance_basis?: string;
@@ -96,7 +106,7 @@ export interface CommercialPricing {
     bill_waiting_in_labour: boolean;
     toll_policy: "included" | "actual" | "review";
     tax_reviewed: boolean;
-    tax_mode: "not_registered" | "registered" | "exempt";
+    tax_mode: "not_registered" | "registered" | "exempt" | "demo_zero";
     tax_registration: string;
     tax_basis_points: number;
     costs_reviewed: boolean;
@@ -157,7 +167,13 @@ export interface PriceRule {
     vehicle_type_key: string | null;
 }
 export interface BookConfiguration {
-    schema_version: 1 | 2;
+    schema_version: 1 | 2 | 3;
+    included_driver_hours?: number;
+    labour_rounding_minutes?: number;
+    long_carry_threshold_metres?: number;
+    waiting_grace_minutes?: number;
+    waiting_interval_minutes?: number;
+    percentage_surcharge_basis?: "charges_subtotal";
     commercial?: CommercialPricing;
     included_metrics: string[];
     crew_size: number;
@@ -171,6 +187,7 @@ export interface BookConfiguration {
     depot_public_id?: string | null;
 }
 export interface PriceBookRecord {
+    is_demonstration?: boolean;
     public_id: string;
     name: string;
     version: number;

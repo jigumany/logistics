@@ -32,11 +32,13 @@ export default function CommercialPricingFields({
     value,
     onChange,
     currency,
+    demonstration = false,
     taxRegistration = "",
 }: {
     value: CommercialPricing;
     onChange: (value: CommercialPricing) => void;
     currency: string;
+    demonstration?: boolean;
     taxRegistration?: string;
 }) {
     const update = (data: Partial<CommercialPricing>) =>
@@ -188,6 +190,7 @@ export default function CommercialPricingFields({
                     Tax status
                     <select
                         aria-label="Tax status"
+                        disabled={demonstration}
                         value={value.tax_mode}
                         onChange={(e) =>
                             update({
@@ -197,6 +200,11 @@ export default function CommercialPricingFields({
                             })
                         }
                     >
+                        {demonstration && (
+                            <option value="demo_zero">
+                                Zero-tax development scenario (unapproved)
+                            </option>
+                        )}
                         <option value="not_registered">Not registered</option>
                         <option value="registered">Registered</option>
                         <option value="exempt">Exempt</option>
@@ -224,6 +232,7 @@ export default function CommercialPricingFields({
                 <input
                     className="!w-auto"
                     type="checkbox"
+                    disabled={demonstration}
                     checked={value.tax_reviewed}
                     onChange={(e) => update({ tax_reviewed: e.target.checked })}
                 />

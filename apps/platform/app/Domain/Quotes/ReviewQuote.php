@@ -17,6 +17,9 @@ final class ReviewQuote
 {
     public function execute(Quote $quote, array $input, int $actorId): Quote
     {
+        if ($quote->simulation_price_book_id !== null) {
+            throw ValidationException::withMessages(['quote' => 'Internal simulations cannot issue, approve or accept customer offers.']);
+        }
         app(QuotePermissions::class)->manage($actorId);
         $data = Validator::make($input, [
             'lock_version' => ['required', 'integer', 'min:0'],

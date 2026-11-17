@@ -9,7 +9,7 @@ final class DescribePriceLine
         $kind = $rule['kind'] ?? 'fixed';
         $metric = $rule['metric'] ?? null;
         $unit = match ($metric) {
-            'chargeable_km' => 'km','labour_hours','loading_hours','unloading_hours','waiting_hours' => 'hours','stairs_flights' => 'flights','carry_metres' => 'metres','additional_stops' => 'stops','packing_items','special_handling_items' => 'items','tolls' => 'minor units',default => 'charge'
+            'chargeable_km' => 'km','driver_hours','mover_hours','overtime_hours','labour_hours','loading_hours','unloading_hours','waiting_hours' => 'hours','stairs_flights' => 'flights','carry_metres' => 'metres','additional_stops', 'long_carry_stops' => 'stops','oversized_items','packing_items','special_handling_items' => 'items','waiting_intervals' => 'started intervals', 'fragile_jobs' => 'jobs', 'tolls' => 'minor units',default => 'charge'
         };
         $scale = $kind === 'percent' ? 4 : 6;
         $digits = str_pad((string) ($rule['rate_micros'] ?? 0), $scale + 1, '0', STR_PAD_LEFT);

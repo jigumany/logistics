@@ -148,6 +148,6 @@ final class GuestQuoteController extends Controller
 
     public function find(string $publicId): Quote
     {
-        return Quote::where('public_id', $publicId)->where('access_expires_at', '>', now())->firstOrFail();
+        return Quote::whereNull('simulation_price_book_id')->where('public_id', $publicId)->where('access_expires_at', '>', now())->firstOrFail();
     }
 }

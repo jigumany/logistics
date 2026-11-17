@@ -7,6 +7,7 @@ use App\Http\Controllers\QuotationPolicyController;
 use App\Http\Controllers\QuoteController;
 use App\Http\Controllers\QuoteDocumentController;
 use App\Http\Controllers\QuoteMediaController;
+use App\Http\Controllers\QuoteSimulationController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('/q/{company}')->middleware(['public-tenant', 'throttle:quote-public'])->group(function (): void {
@@ -40,6 +41,10 @@ Route::prefix('/c/{company}')->middleware(['auth', 'tenant'])->group(function ()
     Route::post('/inventory/{item}/image', [QuoteMediaController::class, 'catalogueUpload']);
     Route::get('/price-books', [PriceBookController::class, 'index']);
     Route::get('/price-books/create', [PriceBookController::class, 'edit']);
+    Route::get('/price-books/{book}/simulate', [QuoteSimulationController::class, 'show'])->middleware('cache.headers:private;no_store');
+    Route::post('/price-books/{book}/simulate/drafts', [QuoteSimulationController::class, 'create'])->middleware(['throttle:quote-create', 'cache.headers:private;no_store']);
+    Route::get('/price-books/{book}/simulate/{quote}/view', [QuoteSimulationController::class, 'operate'])->defaults('operation', 'view')->middleware('cache.headers:private;no_store');
+    Route::post('/price-books/{book}/simulate/{quote}/{operation}', [QuoteSimulationController::class, 'operate'])->whereIn('operation', ['save', 'calculate'])->middleware(['throttle:quote-mutation', 'cache.headers:private;no_store']);
     Route::get('/price-books/{book}', [PriceBookController::class, 'edit']);
     Route::post('/price-books', [PriceBookController::class, 'store']);
     Route::put('/price-books/{book}', [PriceBookController::class, 'update']);

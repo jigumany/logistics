@@ -20,6 +20,8 @@ import { useUnsavedChanges } from "../../../hooks/useUnsavedChanges";
 type EditRule = Omit<PriceRule, "rate_micros"> & { rate_value: string };
 export default function Edit({
     book,
+    versions = [],
+    comparison = null,
     isNew = false,
     services,
     depots,
@@ -28,6 +30,11 @@ export default function Edit({
     companyTaxRegistration = "",
 }: {
     book: PriceBookRecord | null;
+    versions?: Pick<
+        PriceBookRecord,
+        "public_id" | "name" | "version" | "status" | "is_demonstration"
+    >[];
+    comparison?: PriceBookRecord | null;
     isNew?: boolean;
     services: { public_id: string; name: string }[];
     depots: { public_id: string; name: string }[];
@@ -70,6 +77,7 @@ export default function Edit({
         },
     ];
     const form = useForm({
+        is_demonstration: book?.is_demonstration ?? false,
         name: book?.name ?? "",
         service_public_id:
             book?.service_public_id ?? services[0]?.public_id ?? "",
@@ -178,6 +186,153 @@ export default function Edit({
                     </Button>
                 )}
             </div>
+            {book && !creating && (
+                <Card className="mb-6">
+                    <label>
+                        Compare with another service pricing version
+                        <select
+                            value={comparison?.public_id ?? ""}
+                            onChange={(event) =>
+                                router.get(
+                                    base + "/" + book.public_id,
+                                    event.target.value
+                                        ? { compare: event.target.value }
+                                        : {},
+                                )
+                            }
+                        >
+                            <option value="">Choose version</option>
+                            {versions
+                                .filter(
+                                    (version) =>
+                                        version.public_id !== book.public_id,
+                                )
+                                .map((version) => (
+                                    <option
+                                        key={version.public_id}
+                                        value={version.public_id}
+                                    >
+                                        Version {version.version} ·{" "}
+                                        {version.name} ·{" "}
+                                        {version.is_demonstration
+                                            ? "Demo"
+                                            : version.status}
+                                    </option>
+                                ))}
+                        </select>
+                    </label>
+                    {comparison && (
+                        <div className="mt-4 overflow-x-auto">
+                            <h2 className="font-semibold">
+                                Version {book.version} compared with version{" "}
+                                {comparison.version}
+                            </h2>
+                            <p className="my-3 text-sm">
+                                Current saved settings: {book.distance_basis},{" "}
+                                {book.currency}. Compared settings:{" "}
+                                {comparison.distance_basis},{" "}
+                                {comparison.currency}. Published versions remain
+                                immutable.
+                            </p>
+                            <table className="w-full text-left text-xs">
+                                <thead>
+                                    <tr>
+                                        <th>Rule identifier</th>
+                                        <th>
+                                            Current saved rate / kind / stage
+                                        </th>
+                                        <th>Compared rate / kind / stage</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {Array.from(
+                                        new Set(
+                                            [
+                                                ...book.rules,
+                                                ...comparison.rules,
+                                            ].map((rule) => rule.code),
+                                        ),
+                                    ).map((code) => {
+                                        const current = book.rules.find(
+                                            (rule) => rule.code === code,
+                                        );
+                                        const previous = comparison.rules.find(
+                                            (rule) => rule.code === code,
+                                        );
+                                        const display = (rule?: PriceRule) =>
+                                            rule
+                                                ? scaledDecimal(
+                                                      rule.rate_micros,
+                                                      rule.kind === "percent"
+                                                          ? 4
+                                                          : 6,
+                                                  ) +
+                                                  (rule.kind === "percent"
+                                                      ? "%"
+                                                      : " " +
+                                                        (rule === previous
+                                                            ? comparison.currency
+                                                            : book.currency)) +
+                                                  " / " +
+                                                  rule.kind +
+                                                  " / " +
+                                                  rule.stage
+                                                : "Absent";
+                                        return (
+                                            <tr className="border-t" key={code}>
+                                                <td className="py-2">{code}</td>
+                                                <td>{display(current)}</td>
+                                                <td>{display(previous)}</td>
+                                            </tr>
+                                        );
+                                    })}
+                                </tbody>
+                            </table>
+                            <details className="mt-3">
+                                <summary>Saved policy settings</summary>
+                                <div className="grid gap-4 sm:grid-cols-2">
+                                    <pre className="overflow-auto text-xs">
+                                        {JSON.stringify(
+                                            book.configuration,
+                                            null,
+                                            2,
+                                        )}
+                                    </pre>
+                                    <pre className="overflow-auto text-xs">
+                                        {JSON.stringify(
+                                            comparison.configuration,
+                                            null,
+                                            2,
+                                        )}
+                                    </pre>
+                                </div>
+                            </details>
+                        </div>
+                    )}
+                </Card>
+            )}
+            {book?.is_demonstration && (
+                <Card className="mb-6">
+                    <h2 className="font-semibold">
+                        Demonstration rates · not commercially approved
+                    </h2>
+                    <p className="my-3 text-sm">
+                        Synthetic development rates and a deliberate zero-tax
+                        test scenario. These drafts cannot be published or used
+                        for customer offers. Actual operating costs and
+                        production tax remain unreviewed.
+                    </p>
+                    {!creating && (
+                        <Button asChild>
+                            <Link
+                                href={base + "/" + book.public_id + "/simulate"}
+                            >
+                                Run quotation simulation
+                            </Link>
+                        </Button>
+                    )}
+                </Card>
+            )}
             <Card>
                 <form className="grid gap-6" onSubmit={submit}>
                     <fieldset
@@ -330,9 +485,9 @@ export default function Edit({
                             <input
                                 type="checkbox"
                                 className="!w-auto"
-                                disabled={readOnly}
+                                disabled={readOnly || !!book?.is_demonstration}
                                 checked={
-                                    form.data.configuration.schema_version === 2
+                                    form.data.configuration.schema_version >= 2
                                 }
                                 onChange={(event) =>
                                     changeConfig({
@@ -352,8 +507,9 @@ export default function Edit({
                             />
                             Use commercial controls and readiness validation
                         </label>
-                        {form.data.configuration.schema_version === 2 && (
+                        {form.data.configuration.schema_version >= 2 && (
                             <CommercialPricingFields
+                                demonstration={!!book?.is_demonstration}
                                 taxRegistration={companyTaxRegistration}
                                 currency={form.data.currency}
                                 value={
@@ -364,6 +520,63 @@ export default function Edit({
                                     changeConfig({ commercial })
                                 }
                             />
+                        )}
+                        {book?.is_demonstration && (
+                            <div className="grid gap-4 sm:grid-cols-3">
+                                <p className="sm:col-span-3 text-sm">
+                                    Labour is rounded up to the configured
+                                    interval. Requested movers are billed
+                                    separately. Weekend and after-hours
+                                    percentages each apply to base, distance and
+                                    labour before fixed surcharges; they do not
+                                    compound.
+                                </p>
+                                {(
+                                    [
+                                        [
+                                            "included_driver_hours",
+                                            "Included driver hours",
+                                        ],
+                                        [
+                                            "labour_rounding_minutes",
+                                            "Labour rounding interval (minutes)",
+                                        ],
+                                        [
+                                            "long_carry_threshold_metres",
+                                            "Long carry threshold per stop (m)",
+                                        ],
+                                        [
+                                            "waiting_grace_minutes",
+                                            "Waiting grace (minutes)",
+                                        ],
+                                        [
+                                            "waiting_interval_minutes",
+                                            "Started waiting interval (minutes)",
+                                        ],
+                                    ] as const
+                                ).map(([field, label]) => (
+                                    <label key={field}>
+                                        {label}
+                                        <input
+                                            type="number"
+                                            min="0"
+                                            required
+                                            value={
+                                                form.data.configuration[
+                                                    field
+                                                ] ?? 0
+                                            }
+                                            onChange={(e) =>
+                                                changeConfig({
+                                                    [field]: Number(
+                                                        e.target.value,
+                                                    ),
+                                                })
+                                            }
+                                        />
+                                    </label>
+                                ))}
+                            </div>
                         )}
                         <h2 className="text-xl font-bold">
                             Loading and operational assumptions
@@ -775,38 +988,44 @@ export default function Edit({
                     )}
                 </form>
             </Card>
-            {book && !creating && book.status === "draft" && (
-                <Card className="mt-6">
-                    <h2 className="text-xl font-bold">Publish this version</h2>
-                    <p className="mt-3 text-sm text-slate-600">
-                        Published pricing is immutable. Retire an overlapping
-                        published book before publishing its replacement.
-                        Existing quoted revisions retain their original price.
-                    </p>
-                    <label className="my-5 flex items-start gap-3">
-                        <input
-                            className="!w-auto"
-                            type="checkbox"
-                            checked={acknowledged}
-                            onChange={(event) =>
-                                setAcknowledged(event.target.checked)
+            {book &&
+                !creating &&
+                book.status === "draft" &&
+                !book.is_demonstration && (
+                    <Card className="mt-6">
+                        <h2 className="text-xl font-bold">
+                            Publish this version
+                        </h2>
+                        <p className="mt-3 text-sm text-slate-600">
+                            Published pricing is immutable. Retire an
+                            overlapping published book before publishing its
+                            replacement. Existing quoted revisions retain their
+                            original price.
+                        </p>
+                        <label className="my-5 flex items-start gap-3">
+                            <input
+                                className="!w-auto"
+                                type="checkbox"
+                                checked={acknowledged}
+                                onChange={(event) =>
+                                    setAcknowledged(event.target.checked)
+                                }
+                            />
+                            I have checked every rate, included component, tax
+                            setting and effective date.
+                        </label>
+                        <Button
+                            disabled={!acknowledged || form.isDirty}
+                            onClick={() =>
+                                router.post(
+                                    base + "/" + book.public_id + "/publish",
+                                )
                             }
-                        />
-                        I have checked every rate, included component, tax
-                        setting and effective date.
-                    </label>
-                    <Button
-                        disabled={!acknowledged || form.isDirty}
-                        onClick={() =>
-                            router.post(
-                                base + "/" + book.public_id + "/publish",
-                            )
-                        }
-                    >
-                        Publish price book
-                    </Button>
-                </Card>
-            )}
+                        >
+                            Publish price book
+                        </Button>
+                    </Card>
+                )}
             {book && !creating && book.status === "published" && (
                 <Card className="mt-6">
                     <h2 className="text-xl font-bold">Retire pricing</h2>

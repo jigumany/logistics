@@ -10,14 +10,14 @@ use Illuminate\Validation\ValidationException;
 
 final class PriceBookConfiguration
 {
-    public function validate(array $configuration, array $rules): array
+    public function validate(array $configuration, array $rules, bool $isDemonstration = false): array
     {
         $data = Validator::make($configuration, [
             'commercial' => ['sometimes', 'array'],
             'depot_public_id' => ['nullable', 'ulid', Rule::exists('depots', 'public_id')->where('tenant_id', app(TenantContext::class)->tenant()->id)->where('active', true)->where('coordinates_verified', true)],
-            'schema_version' => ['required', 'integer', 'in:1,2'],
-            'included_metrics' => ['required', 'array', 'max:30'],
-            'included_metrics.*' => ['required', 'distinct', Rule::in(PricingRules::ALL_METRICS)],
+            'schema_version' => ['required', 'integer', 'in:1,2,3'],
+            'included_metrics' => ['required', 'array', 'max:40'],
+            'included_metrics.*' => ['required', 'distinct', Rule::in(PricingRules::SUPPORTED_METRICS)],
             'crew_size' => ['required', 'integer', 'between:1,20'],
             'loading_minutes_per_complexity' => ['required', 'numeric', 'between:0,120'],
             'unloading_minutes_per_complexity' => ['required', 'numeric', 'between:0,120'],
@@ -28,6 +28,19 @@ final class PriceBookConfiguration
             'holiday_dates' => ['present', 'array', 'max:370'],
             'holiday_dates.*' => ['date_format:Y-m-d', 'distinct'],
         ])->validate();
+        if ((int) ($configuration['schema_version'] ?? 1) === 3 && ! $isDemonstration) {
+            throw ValidationException::withMessages(['configuration' => 'This demonstration tariff configuration cannot be used for commercial pricing.']);
+        }
+        if ((int) ($configuration['schema_version'] ?? 1) === 3) {
+            $data += Validator::make($configuration, [
+                'included_driver_hours' => ['required', 'numeric', 'between:0,240'],
+                'labour_rounding_minutes' => ['required', 'integer', 'in:1,5,10,15,30,60'],
+                'long_carry_threshold_metres' => ['required', 'integer', 'between:0,10000'],
+                'waiting_grace_minutes' => ['required', 'integer', 'between:0,10000'],
+                'waiting_interval_minutes' => ['required', 'integer', 'between:1,240'],
+                'percentage_surcharge_basis' => ['required', 'in:charges_subtotal'],
+            ])->validate();
+        }
         try {
             $rules = (new PricingRules)->validate($rules);
         } catch (\InvalidArgumentException $error) {
@@ -38,15 +51,18 @@ final class PriceBookConfiguration
         if (array_diff($categories, $knownCategories)) {
             throw ValidationException::withMessages(['rules' => 'Select active vehicle categories for conditional pricing.']);
         }
-        if ((int) $data['schema_version'] === 2) {
-            $data['commercial'] = app(CommercialConfiguration::class)->validate($configuration['commercial'] ?? [], $rules);
+        if ((int) $data['schema_version'] >= 2) {
+            $data['commercial'] = app(CommercialConfiguration::class)->validate($configuration['commercial'] ?? [], $rules, $isDemonstration);
             if ($data['commercial']['cost_distance_basis'] === 'operational' && empty($data['depot_public_id'])) {
                 throw ValidationException::withMessages(['commercial' => 'Operational cost estimates require a verified depot.']);
             }
         } else {
             unset($data['commercial']);
         }
-        $requiredMetrics = (int) $data['schema_version'] === 2 ? PricingRules::ALL_METRICS : PricingRules::METRICS;
+        $requiredMetrics = (int) $data['schema_version'] === 3 ? PricingRules::SUPPORTED_METRICS : ((int) $data['schema_version'] === 2 ? PricingRules::ALL_METRICS : PricingRules::METRICS);
+        if ((int) $data['schema_version'] < 3 && array_intersect(array_column($rules, 'metric'), PricingRules::DEMONSTRATION_METRICS)) {
+            throw ValidationException::withMessages(['rules' => 'Interval and job-level charges require an explicit demonstration tariff.']);
+        }
         $priced = array_values(array_filter(array_column($rules, 'metric')));
         if (array_intersect($priced, $data['included_metrics']) || array_diff($requiredMetrics, array_merge($priced, $data['included_metrics']))) {
             throw ValidationException::withMessages(['configuration' => 'Every charge metric must be explicitly priced or included, without overlapping definitions.']);

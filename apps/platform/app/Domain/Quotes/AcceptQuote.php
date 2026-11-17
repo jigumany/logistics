@@ -11,6 +11,10 @@ final class AcceptQuote
 {
     public function execute(Quote $quote, string $revisionPublicId): Quote
     {
+        if ($quote->simulation_price_book_id !== null) {
+            throw ValidationException::withMessages(['quote' => 'Internal simulations cannot issue, approve or accept customer offers.']);
+        }
+
         return DB::transaction(function () use ($quote, $revisionPublicId): Quote {
             $quote = Quote::whereKey($quote->id)->with('currentRevision')->lockForUpdate()->firstOrFail();
             $revision = $quote->currentRevision;

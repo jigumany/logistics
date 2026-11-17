@@ -17,7 +17,7 @@ final class QuotationReadiness
 {
     public function currentBook(int $serviceId): ?PriceBook
     {
-        return PriceBook::where('service_id', $serviceId)->where('status', 'published')->where('effective_from', '<=', now())->where(fn ($q) => $q->whereNull('effective_until')->orWhere('effective_until', '>', now()))->orderByDesc('version')->first();
+        return PriceBook::where('is_demonstration', false)->where('service_id', $serviceId)->where('status', 'published')->where('effective_from', '<=', now())->where(fn ($q) => $q->whereNull('effective_until')->orWhere('effective_until', '>', now()))->orderByDesc('version')->first();
     }
 
     public function evaluate(TenantService $service, ?PriceBook $book = null, ?QuotationPolicy $policy = null, ?array $route = null): array

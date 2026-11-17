@@ -8,7 +8,7 @@ use Illuminate\Validation\ValidationException;
 
 final class CommercialConfiguration
 {
-    public function validate(array $input, array $rules): array
+    public function validate(array $input, array $rules, bool $isDemonstration = false): array
     {
         $validation = [
             'included_km' => ['required', 'numeric', 'between:0,100000'],
@@ -20,7 +20,7 @@ final class CommercialConfiguration
             'bill_waiting_in_labour' => ['required', 'boolean'],
             'toll_policy' => ['required', 'in:included,actual,review'],
             'tax_reviewed' => ['required', 'boolean'],
-            'tax_mode' => ['required', 'in:not_registered,registered,exempt'],
+            'tax_mode' => ['required', $isDemonstration ? 'in:demo_zero' : 'in:not_registered,registered,exempt'],
             'tax_registration' => ['nullable', 'string', 'max:100', 'required_if:tax_mode,registered'],
             'tax_basis_points' => ['required', 'integer', 'between:0,10000'],
             'costs_reviewed' => ['required', 'boolean'],
@@ -59,7 +59,7 @@ final class CommercialConfiguration
         $forbidden = $data['labour_model'] === 'combined' ? ['driver_hours', 'mover_hours'] : ['labour_hours'];
         $forbidden = [...$forbidden, 'loading_hours', 'unloading_hours'];
         if ($data['bill_waiting_in_labour']) {
-            $forbidden[] = 'waiting_hours';
+            $forbidden = [...$forbidden, 'waiting_hours', 'waiting_intervals'];
         }
         if (array_intersect($priced, $forbidden)) {
             throw ValidationException::withMessages(['commercial' => 'Labour already includes loading and unloading. Use the selected crew or separate driver/mover model; waiting may only be billed once.']);

@@ -58,6 +58,21 @@ final class QuotePricingMetrics
             $extra = ['estimated_job_hours' => $labour === null ? null : (string) $labour, 'estimated_cost_hours' => $costHours === null ? null : (string) $costHours, 'driver_hours' => $labour === null ? null : (string) $labour, 'mover_hours' => $labour === null ? null : (string) $labour->multipliedBy($config['crew_size'] - 1), 'overtime_hours' => $overtime === null ? null : (string) BigDecimal::max('0', $overtime)->multipliedBy($config['crew_size']), 'difficult_access' => ($details['difficult_access'] || $details['parking_limited']) ? '1' : '0', 'oversized_items' => (string) array_sum(array_map(fn ($item) => $item['oversized'] ? $item['quantity'] : 0, $inventory['items'])), 'labour_hours' => $labour === null ? null : (string) $labour->multipliedBy($config['crew_size'])];
         }
 
+        if ((int) $config['schema_version'] === 3) {
+            $requested = (int) ($details['additional_movers'] ?? 0);
+            $rawHours = $extra['estimated_job_hours'] ?? null;
+            $roundedHours = $rawHours === null ? null : BigDecimal::of($rawHours)->multipliedBy(60)->dividedBy($config['labour_rounding_minutes'], 0, RoundingMode::Ceiling)->multipliedBy($config['labour_rounding_minutes'])->dividedBy(60, 6, RoundingMode::HalfUp);
+            $extra['estimated_job_hours'] = $roundedHours === null ? null : (string) $roundedHours;
+            $extra['requested_additional_movers'] = (string) $requested;
+            $extra['included_driver_hours'] = (string) $config['included_driver_hours'];
+            $extra['driver_hours'] = $roundedHours === null ? null : (string) BigDecimal::max('0', $roundedHours->minus((string) $config['included_driver_hours']));
+            $extra['mover_hours'] = $requested === 0 ? '0' : ($roundedHours === null ? null : (string) $roundedHours->multipliedBy($requested));
+            $extra['long_carry_stops'] = (string) ((int) ($details['pickup_carry_metres'] > $config['long_carry_threshold_metres']) + (int) ($details['delivery_carry_metres'] > $config['long_carry_threshold_metres']));
+            $extra['fragile_jobs'] = count(array_filter($inventory['items'], fn ($item) => $item['fragile'])) > 0 ? '1' : '0';
+            $extra['waiting_intervals'] = empty($details['waiting_confirmed']) ? '0' : (string) BigDecimal::of(max(0, $details['waiting_minutes'] - $config['waiting_grace_minutes']))->dividedBy($config['waiting_interval_minutes'], 0, RoundingMode::Ceiling);
+            $extra['waiting_confirmed'] = ! empty($details['waiting_confirmed']) ? '1' : '0';
+        }
+
         return [...['base' => '1', 'chargeable_km' => $kilometres === null ? null : (string) $kilometres, 'vehicle_category' => '1', 'loading_hours' => $hours($loading), 'unloading_hours' => $hours($unloading), 'labour_hours' => $route['duration_seconds'] === null ? null : $hours($loading->plus($unloading)->plus(BigDecimal::of($route['duration_seconds'])->dividedBy('60', 6, RoundingMode::HalfUp))->multipliedBy($config['crew_size'])), 'stairs_flights' => (string) (($details['pickup_lift'] ? 0 : $details['pickup_stairs']) + ($details['delivery_lift'] ? 0 : $details['delivery_stairs'])), 'carry_metres' => (string) max(0, $details['pickup_carry_metres'] + $details['delivery_carry_metres'] - $config['carry_included_metres']), 'additional_stops' => (string) (count($input['stops']) - 2), 'waiting_hours' => $hours(BigDecimal::of($details['waiting_minutes'])), 'after_hours' => $time === null ? null : (($time < $config['business_opens'] || $time >= $config['business_closes']) ? '1' : '0'), 'weekend' => in_array($date->dayOfWeek, $config['weekend_days'] ?? [0, 6], true) ? '1' : '0', 'holiday' => in_array($input['preferred_date'], $config['holiday_dates'], true) ? '1' : '0', 'packing_items' => $details['packing'] ? (string) $inventory['quantity'] : '0', 'special_handling_items' => (string) $special, 'tolls' => $route['tolls_minor'] === null ? null : (string) $route['tolls_minor']], ...$extra];
     }
 }

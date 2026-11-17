@@ -23,7 +23,7 @@ final class CalculateQuote
                 throw ValidationException::withMessages(['quote' => 'This quotation is closed. Start a new request to change its inputs.']);
             }
             $hash = $data === null ? $quote->input_hash : app(QuoteInput::class)->hash($data);
-            if (! $force && $hash === $quote->input_hash && $quote->currentRevision && $quote->currentRevision->expires_at->isFuture() && $quote->status !== 'calculating' && ($quote->submitted_at || $quote->currentRevision->approval !== 'automatic' || ($quote->currentRevision->pricing_snapshot['engine_version'] ?? null) === PricingEngine::VERSION)) {
+            if ($quote->simulation_price_book_id === null && ! $force && $hash === $quote->input_hash && $quote->currentRevision && $quote->currentRevision->expires_at->isFuture() && $quote->status !== 'calculating' && ($quote->submitted_at || $quote->currentRevision->approval !== 'automatic' || ($quote->currentRevision->pricing_snapshot['engine_version'] ?? null) === PricingEngine::VERSION)) {
                 return [$quote, $quote->lock_version, true];
             }
             if ($quote->lock_version !== $expectedVersion || ($quote->status === 'calculating' && $quote->updated_at->gt(now()->subMinutes(2)))) {

@@ -29,3 +29,10 @@ CompanySettings::create(['display_name' => 'Browser Movers', 'contact_email' => 
 TenantService::create(['code' => 'household', 'name' => 'Household moving', 'enabled' => true]);
 app(TenantContext::class)->clear();
 Tenant::create(['name' => 'Private Company', 'slug' => 'private-company']);
+$demo = Tenant::create(['name' => 'Cape Town Demo', 'slug' => 'cape-town-movers']);
+Membership::create(['tenant_id' => $demo->id, 'user_id' => $owner->id, 'role' => Role::Owner]);
+app(TenantContext::class)->set($demo);
+CompanySettings::create(['display_name' => 'Cape Town Demo', 'contact_email' => 'demo@example.test']);
+TenantService::create(['code' => 'household', 'name' => 'Household moving', 'enabled' => true, 'active' => true]);
+app(\Database\Seeders\DemonstrationPriceBookSeeder::class)->run();
+app(TenantContext::class)->clear();

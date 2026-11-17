@@ -16,6 +16,9 @@ final class SubmitQuote
 {
     public function execute(Quote $quote, array $contact, int $expectedVersion): Quote
     {
+        if ($quote->simulation_price_book_id !== null) {
+            throw ValidationException::withMessages(['quote' => 'Internal simulations cannot issue, approve or accept customer offers.']);
+        }
         $contact = Validator::make($contact, ['name' => ['required', 'string', 'max:160'], 'email' => ['required', 'email:rfc', 'max:254'], 'phone' => ['nullable', 'string', 'max:30'], 'consent' => ['required', 'accepted'], 'communication' => ['required', 'in:email,none'], 'marketing_consent' => ['sometimes', 'boolean']])->validate();
         $contact['name'] = trim($contact['name']);
         $contact['consent'] = true;

@@ -4,6 +4,8 @@ import { Button, Card } from "@logistics/design-system";
 import QuotationLayout from "../../layouts/QuotationLayout";
 import QuoteAddressFields from "../../components/QuoteAddressFields";
 import QuoteInventoryEditor from "../../components/QuoteInventoryEditor";
+import PricingExplanation from "../../components/PricingExplanation";
+import type { InternalRevision } from "../../features/quotes/adminTypes";
 import QuoteSummary from "../../components/QuoteSummary";
 import {
     clearDraft,
@@ -24,12 +26,22 @@ export default function QuoteWizard({
     business,
     services,
     currency = "ZAR",
+    simulation,
 }: {
     business: { name: string; slug: string };
     currency?: string;
+    simulation?: {
+        name: string;
+        version: number;
+        base_url: string;
+        book_public_id: string;
+        vehicle_types: { key: string; name: string }[];
+    };
     services: { public_id: string; name: string; description: string | null }[];
 }) {
-    const [recovered] = useState(() => readDraft(business.slug));
+    const [recovered] = useState(() =>
+        simulation ? null : readDraft(business.slug),
+    );
     const [input, setInput] = useState<QuoteInput>(
         () => recovered?.input ?? emptyQuoteInput(services[0]?.public_id ?? ""),
     );
@@ -40,6 +52,23 @@ export default function QuoteWizard({
     const [quote, setQuote] = useState<QuotationData | null>(
         recovered?.quote ?? null,
     );
+    const [options, setOptions] = useState({
+        vehicle_type_key:
+            simulation?.vehicle_types.find(
+                (type) => type.key === "demo_light_box_truck",
+            )?.key ??
+            simulation?.vehicle_types[0]?.key ??
+            "",
+        additional_movers: 0,
+        waiting_confirmed: false,
+        route_distance_km: "",
+        route_duration_minutes: "",
+    });
+    function changeOptions(values: Partial<typeof options>) {
+        setOptions((previous) => ({ ...previous, ...values }));
+        setQuote(null);
+        setKey(crypto.randomUUID());
+    }
     const [photos, setPhotos] = useState<Record<string, File[]>>({});
     const [contact, setContact] = useState<QuoteContact>({
         name: "",
@@ -55,8 +84,9 @@ export default function QuoteWizard({
     const [error, setError] = useState("");
     const [progress, setProgress] = useState("");
     const [storageError, setStorageError] = useState(false);
-    const base = "/q/" + business.slug;
+    const base = simulation?.base_url ?? "/q/" + business.slug;
     useEffect(() => {
+        if (simulation) return;
         setStorageError(
             !saveDraft(business.slug, {
                 version: 1,
@@ -67,7 +97,7 @@ export default function QuoteWizard({
                 quote,
             }),
         );
-    }, [business.slug, step, key, input, quote]);
+    }, [business.slug, step, key, input, quote, simulation]);
     useEffect(() => {
         const guard = (event: BeforeUnloadEvent) => {
             if (!leaving.current && (contact.name || contact.email)) {
@@ -92,16 +122,28 @@ export default function QuoteWizard({
                 idempotency_key: key,
                 input,
                 website: "",
+                ...(simulation
+                    ? {
+                          options: {
+                              ...options,
+                              route_distance_km:
+                                  options.route_distance_km || null,
+                              route_duration_minutes:
+                                  options.route_duration_minutes || null,
+                          },
+                      }
+                    : {}),
             });
             setQuote(current);
-            saveDraft(business.slug, {
-                version: 1,
-                savedAt: Date.now(),
-                step,
-                key,
-                input,
-                quote: current,
-            });
+            if (!simulation)
+                saveDraft(business.slug, {
+                    version: 1,
+                    savedAt: Date.now(),
+                    step,
+                    key,
+                    input,
+                    quote: current,
+                });
         }
         if (current.status === "draft") {
             current = await quoteRequest<QuotationData>(current.links.save, {
@@ -158,7 +200,7 @@ export default function QuoteWizard({
                         "A request can contain at most 10000 items.",
                     );
             }
-            if (step === 3) {
+            if (step === 3 || (simulation && step === 4)) {
                 await calculate();
             } else if (step === 5) {
                 if (!quote)
@@ -202,7 +244,7 @@ export default function QuoteWizard({
     function startOver() {
         if (!window.confirm("Start a new request and clear this draft?"))
             return;
-        clearDraft(business.slug);
+        if (!simulation) clearDraft(business.slug);
         setKey(crypto.randomUUID());
         setInput(emptyQuoteInput(services[0]?.public_id ?? ""));
         setQuote(null);
@@ -212,6 +254,29 @@ export default function QuoteWizard({
     }
     return (
         <QuotationLayout business={business} title="Request a quotation">
+            {simulation && (
+                <Card className="mb-6">
+                    <h1 className="text-xl font-bold">
+                        Internal quotation simulation
+                    </h1>
+                    <p className="my-3">
+                        {simulation.name} · Version {simulation.version}.
+                        Synthetic, unapproved rates and zero-tax test treatment.
+                        No customer offer, acceptance or booking is created.
+                    </p>
+                    <a
+                        className="underline"
+                        href={
+                            "/c/" +
+                            business.slug +
+                            "/price-books/" +
+                            simulation.book_public_id
+                        }
+                    >
+                        Back to price book
+                    </a>
+                </Card>
+            )}
             <div className="mb-8">
                 <p className="text-sm font-semibold text-teal-800">
                     YOUR NEXT MOVE
@@ -228,20 +293,22 @@ export default function QuoteWizard({
                 aria-label="Quotation progress"
                 className="mb-7 grid grid-cols-3 gap-2 sm:grid-cols-6"
             >
-                {steps.map((title, index) => (
-                    <li
-                        aria-current={index === step ? "step" : undefined}
-                        className={
-                            "rounded-lg p-3 text-sm " +
-                            (index === step
-                                ? "bg-teal-900 font-bold text-white"
-                                : "bg-white text-slate-500")
-                        }
-                        key={title}
-                    >
-                        {index + 1}. {title}
-                    </li>
-                ))}
+                {(simulation ? steps.slice(0, 5) : steps).map(
+                    (title, index) => (
+                        <li
+                            aria-current={index === step ? "step" : undefined}
+                            className={
+                                "rounded-lg p-3 text-sm " +
+                                (index === step
+                                    ? "bg-teal-900 font-bold text-white"
+                                    : "bg-white text-slate-500")
+                            }
+                            key={title}
+                        >
+                            {index + 1}. {title}
+                        </li>
+                    ),
+                )}
             </ol>
             {recovered && (
                 <p className="mb-5 rounded-lg bg-teal-50 p-4 text-sm">
@@ -269,6 +336,89 @@ export default function QuoteWizard({
                         <h2 className="mb-6 text-2xl font-bold">
                             {steps[step]}
                         </h2>
+                        {step === 0 && simulation && (
+                            <div className="mb-6 grid gap-4 sm:grid-cols-2">
+                                <label>
+                                    Catalogue vehicle type
+                                    <select
+                                        value={options.vehicle_type_key}
+                                        onChange={(e) =>
+                                            changeOptions({
+                                                vehicle_type_key:
+                                                    e.target.value,
+                                            })
+                                        }
+                                    >
+                                        {simulation.vehicle_types.map(
+                                            (type) => (
+                                                <option
+                                                    key={type.key}
+                                                    value={type.key}
+                                                >
+                                                    {type.name}
+                                                </option>
+                                            ),
+                                        )}
+                                    </select>
+                                </label>
+                                <label>
+                                    Requested additional movers
+                                    <input
+                                        type="number"
+                                        required
+                                        min="0"
+                                        max="19"
+                                        value={options.additional_movers}
+                                        onChange={(e) =>
+                                            changeOptions({
+                                                additional_movers: Number(
+                                                    e.target.value,
+                                                ),
+                                            })
+                                        }
+                                    />
+                                </label>
+                                <p className="sm:col-span-2 text-sm">
+                                    Optional synthetic route fixture for
+                                    reproducible internal tests. Supply both
+                                    values, or leave both blank to use the
+                                    configured routing provider. This does not
+                                    verify a real journey.
+                                </p>
+                                <label>
+                                    Test route distance (km)
+                                    <input
+                                        type="number"
+                                        min="0"
+                                        max="10000"
+                                        step="0.001"
+                                        value={options.route_distance_km}
+                                        onChange={(e) =>
+                                            changeOptions({
+                                                route_distance_km:
+                                                    e.target.value,
+                                            })
+                                        }
+                                    />
+                                </label>
+                                <label>
+                                    Test driving duration (minutes)
+                                    <input
+                                        type="number"
+                                        min="0"
+                                        max="43200"
+                                        step="0.01"
+                                        value={options.route_duration_minutes}
+                                        onChange={(e) =>
+                                            changeOptions({
+                                                route_duration_minutes:
+                                                    e.target.value,
+                                            })
+                                        }
+                                    />
+                                </label>
+                            </div>
+                        )}
                         {step === 0 && (
                             <fieldset className="grid gap-4">
                                 <legend className="mb-4 text-sm text-slate-600">
@@ -366,7 +516,7 @@ export default function QuoteWizard({
                                                         index
                                             }
                                             address={address}
-                                            base={base}
+                                            base={"/q/" + business.slug}
                                             onChange={(address) =>
                                                 changeInput({
                                                     stops: input.stops.map(
@@ -424,7 +574,7 @@ export default function QuoteWizard({
                         )}
                         {step === 2 && (
                             <QuoteInventoryEditor
-                                base={base}
+                                base={"/q/" + business.slug}
                                 items={input.inventory}
                                 onChange={(inventory) =>
                                     changeInput({ inventory })
@@ -437,7 +587,8 @@ export default function QuoteWizard({
                                     }))
                                 }
                                 photosLocked={
-                                    quote !== null && quote.status !== "draft"
+                                    !!simulation ||
+                                    (quote !== null && quote.status !== "draft")
                                 }
                             />
                         )}{" "}
@@ -595,7 +746,34 @@ export default function QuoteWizard({
                                 ))}
                             </div>
                         )}
-                        {step === 4 && quote && <QuoteSummary quote={quote} />}{" "}
+                        {step === 3 && simulation && (
+                            <label className="my-4 flex gap-3">
+                                <input
+                                    className="!w-auto"
+                                    type="checkbox"
+                                    checked={options.waiting_confirmed}
+                                    onChange={(e) =>
+                                        changeOptions({
+                                            waiting_confirmed: e.target.checked,
+                                        })
+                                    }
+                                />
+                                Waiting time is actual or explicitly agreed
+                                (otherwise no waiting surcharge)
+                            </label>
+                        )}
+                        {step === 4 && quote && (
+                            <>
+                                <QuoteSummary quote={quote} />
+                                {simulation && quote.revision && (
+                                    <PricingExplanation
+                                        revision={
+                                            quote.revision as InternalRevision
+                                        }
+                                    />
+                                )}
+                            </>
+                        )}{" "}
                         {step === 5 && (
                             <div className="grid gap-5">
                                 <p className="text-slate-600">
@@ -745,11 +923,13 @@ export default function QuoteWizard({
                                 <span />
                             )}
                             <Button disabled={busy} type="submit">
-                                {step === 3
-                                    ? "Calculate estimate"
-                                    : step === 5
-                                      ? "Submit quotation request"
-                                      : "Continue"}
+                                {simulation && step === 4
+                                    ? "Recalculate simulation"
+                                    : step === 3
+                                      ? "Calculate estimate"
+                                      : step === 5
+                                        ? "Submit quotation request"
+                                        : "Continue"}
                             </Button>
                         </div>
                     </Card>

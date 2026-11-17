@@ -25,7 +25,7 @@ final class QuoteController extends Controller
     {
         $this->authorizeView($request);
         $filters = $request->validate(['search' => ['nullable', 'string', 'max:100'], 'status' => ['nullable', 'in:draft,calculating,requires_review,quoted,accepted,expired,declined,cancelled']]);
-        $query = Quote::with('currentRevision')->whereNotNull('submitted_at');
+        $query = Quote::whereNull('simulation_price_book_id')->with('currentRevision')->whereNotNull('submitted_at');
         if (! empty($filters['status'])) {
             $query->where('status', $filters['status']);
         }
@@ -40,7 +40,7 @@ final class QuoteController extends Controller
     public function show(Request $request, string $company, string $quote, QuotationView $view): Response
     {
         $this->authorizeView($request);
-        $model = Quote::where('public_id', $quote)->firstOrFail();
+        $model = Quote::whereNull('simulation_price_book_id')->where('public_id', $quote)->firstOrFail();
 
         return Inertia::render('company/quotes/Show', ['quote' => $view->make($model, true), 'history' => QuoteStatusHistory::where('quote_id', $model->id)->orderByDesc('id')->paginate(20, ['*'], 'history_page')->withQueryString()->through(fn ($row) => $row->only('from_status', 'to_status', 'created_at')), 'revisions' => QuoteRevision::where('quote_id', $model->id)->with(['lines', 'inventory', 'stops'])->orderByDesc('number')->paginate(10, ['*'], 'revisions_page')->withQueryString()->through(fn ($revision) => $view->revision($revision, true))]);
     }

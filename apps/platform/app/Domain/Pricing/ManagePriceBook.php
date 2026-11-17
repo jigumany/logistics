@@ -34,11 +34,18 @@ final class ManagePriceBook
             } catch (\InvalidArgumentException $error) {
                 throw ValidationException::withMessages(['rules' => $error->getMessage()]);
             }
-            $configuration = app(PriceBookConfiguration::class)->validate($data['configuration'], $rules);
+            $isDemonstration = ($book ? $book->is_demonstration : null) ?? (bool) ($data['is_demonstration'] ?? false);
+            if ($isDemonstration && (! app()->environment(['local', 'testing']) || app(TenantContext::class)->tenant()->slug !== 'cape-town-movers')) {
+                throw ValidationException::withMessages(['price_book' => 'Demonstration pricing is restricted to the designated development tenant.']);
+            }
+            if ($book && array_key_exists('is_demonstration', $data) && (bool) $data['is_demonstration'] !== $book->is_demonstration) {
+                throw ValidationException::withMessages(['price_book' => 'A pricing version cannot change its demonstration identity.']);
+            }
+            $configuration = app(PriceBookConfiguration::class)->validate($data['configuration'], $rules, $isDemonstration);
             if ($data['distance_basis'] !== 'customer' && empty($configuration['depot_public_id'])) {
                 throw ValidationException::withMessages(['configuration' => 'Select a verified depot when depot or return distances are chargeable.']);
             }
-            $book ??= new PriceBook(['service_id' => $service->id, 'version' => (int) PriceBook::where('service_id', $service->id)->max('version') + 1, 'status' => 'draft']);
+            $book ??= new PriceBook(['demonstration_key' => $isDemonstration ? ($data['demonstration_key'] ?? null) : null, 'is_demonstration' => $isDemonstration, 'service_id' => $service->id, 'version' => (int) PriceBook::where('service_id', $service->id)->max('version') + 1, 'status' => 'draft']);
             $book->fill(array_intersect_key($data, array_flip(['name', 'currency', 'effective_from', 'effective_until', 'distance_basis'])));
             $book->configuration = $configuration;
             $book->save();
@@ -59,6 +66,9 @@ final class ManagePriceBook
         return DB::transaction(function () use ($book, $actorId): PriceBook {
             Tenant::whereKey(app(TenantContext::class)->tenant()->id)->lockForUpdate()->firstOrFail();
             $book = PriceBook::whereKey($book->id)->lockForUpdate()->firstOrFail();
+            if ($book->is_demonstration) {
+                throw ValidationException::withMessages(['price_book' => 'Synthetic demonstration rates cannot be published as customer-facing commercial pricing.']);
+            }
             if ($book->status !== 'draft') {
                 throw ValidationException::withMessages(['price_book' => 'Only draft pricing can be published.']);
             }

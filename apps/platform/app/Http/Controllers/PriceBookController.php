@@ -30,18 +30,21 @@ final class PriceBookController extends Controller
     public function edit(Request $request, string $company, ?string $book = null): Response
     {
         app(QuotePermissions::class)->manage($request->user()->id);
-        $copy = $request->validate(['copy' => ['nullable', 'ulid']])['copy'] ?? null;
+        $selection = $request->validate(['copy' => ['nullable', 'ulid'], 'compare' => ['nullable', 'ulid']]);
+        $copy = $selection['copy'] ?? null;
         $model = $book || $copy ? PriceBook::where('public_id', $book ?? $copy)->firstOrFail() : null;
         $data = $model ? [...$model->toArray(), 'service_public_id' => TenantService::whereKey($model->service_id)->value('public_id'), 'rules' => PricingRule::where('price_book_id', $model->id)->orderBy('position')->get()] : null;
 
-        return Inertia::render('company/pricing/Edit', ['book' => $data, 'isNew' => $book === null, 'services' => TenantService::where('active', true)->orderBy('id')->get(['public_id', 'name']), 'depots' => Depot::where('active', true)->where('coordinates_verified', true)->orderBy('name')->get(['public_id', 'name']), 'vehicleTypes' => VehicleType::where('active', true)->orderBy('id')->get(['key', 'name']), 'companyTaxRegistration' => CompanySettings::value('vat_number') ?? '', 'metrics' => PricingRules::ALL_METRICS]);
+        $comparison = $model && ! empty($selection['compare']) ? PriceBook::where('service_id', $model->service_id)->where('public_id', $selection['compare'])->firstOrFail() : null;
+
+        return Inertia::render('company/pricing/Edit', ['versions' => $model ? PriceBook::where('service_id', $model->service_id)->orderByDesc('version')->get(['public_id', 'name', 'version', 'status', 'is_demonstration']) : [], 'comparison' => $comparison ? [...$comparison->toArray(), 'rules' => PricingRule::where('price_book_id', $comparison->id)->orderBy('position')->get()] : null, 'book' => $data, 'isNew' => $book === null, 'services' => TenantService::where('active', true)->orderBy('id')->get(['public_id', 'name']), 'depots' => Depot::where('active', true)->where('coordinates_verified', true)->orderBy('name')->get(['public_id', 'name']), 'vehicleTypes' => VehicleType::where('active', true)->orderBy('id')->get(['key', 'name']), 'companyTaxRegistration' => CompanySettings::value('vat_number') ?? '', 'metrics' => $model?->is_demonstration ? PricingRules::SUPPORTED_METRICS : PricingRules::ALL_METRICS]);
     }
 
     public function store(PriceBookRequest $request, ManagePriceBook $action): RedirectResponse
     {
         $book = $action->save($request->validated(), $request->user()->id);
 
-        return redirect('/c/'.$request->route('company').'/price-books/'.$book->public_id)->with('success', 'Draft price book saved. Publish it when its rules are complete.');
+        return redirect('/c/'.$request->route('company').'/price-books/'.$book->public_id)->with('success', $book->is_demonstration ? 'Demonstration draft saved. Rates remain unapproved and cannot be published.' : 'Draft price book saved. Publish it when its rules are complete.');
     }
 
     public function update(PriceBookRequest $request, string $company, string $book, ManagePriceBook $action): RedirectResponse
