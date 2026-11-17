@@ -191,3 +191,59 @@ it('enforces demonstration publication and simulation identity restrictions in P
         };
     }))->toThrow(QueryException::class);
 })->with(['publish', 'convert', 'issue', 'detach']);
+it('retains every Light Box Truck component when revised and an acceptance attempt is rejected', function (): void {
+    [$tenant,$owner,$service,$book] = demoTariffFixture();
+    $input = quoteInput($service, ['preferred_date' => now()->addWeek()->next('Monday')->toDateString()]);
+    $input['details']['pickup_stairs'] = 1;
+    $quote = demoSimulation($service, $book, ['additional_movers' => 1, 'route_duration_minutes' => '160'], $input);
+    $first = $quote->currentRevision;
+    $expected = ['demo_light_box_truck_base' => 55000, 'demo_light_box_truck_distance' => 35000, 'driver_extra' => 12000, 'additional_movers' => 45000, 'stairs' => 10000, 'demo_light_box_truck_minimum' => 0, 'demo_tax' => 0];
+    expect($first->lines->pluck('amount_minor', 'code')->all())->toEqual($expected)->and($first->total_minor)->toBe(157000);
+    $snapshot = $first->getAttributes();
+    $lines = $first->lines->map->getAttributes()->all();
+    PricingRule::where('price_book_id', $book->id)->where('code', 'demo_light_box_truck_base')->update(['rate_micros' => 600000000]);
+    $quote = app(CalculateQuote::class)->execute($quote, $quote->lock_version);
+    expect($quote->currentRevision->total_minor)->toBe(162000)->and($quote->currentRevision->number)->toBe(2);
+    expect($first->fresh()->getAttributes())->toBe($snapshot)->and($first->fresh()->lines->map->getAttributes()->all())->toBe($lines);
+    $latest = $quote->currentRevision->getAttributes();
+    expect(fn () => app(AcceptQuote::class)->execute($quote, $quote->currentRevision->public_id))->toThrow(ValidationException::class);
+    expect($quote->fresh()->accepted_at)->toBeNull()->and($quote->currentRevision->fresh()->getAttributes())->toBe($latest)->and($first->fresh()->total_minor)->toBe(157000);
+});
+it('rejects a load above the Light Box Truck payload with explicit technical reasons and no automatic price', function (): void {
+    [$tenant,$owner,$service,$book] = demoTariffFixture();
+    $input = quoteInput($service);
+    $input['inventory'][0]['quantity'] = 1;
+    $input['inventory'][0]['weight_kg'] = '2100';
+    $input['inventory'][0]['weight_certainty'] = 'known';
+    $quote = demoSimulation($service, $book, [], $input);
+    $revision = $quote->currentRevision;
+    expect($revision->total_minor)->toBeNull()->and($revision->approval)->toBe('pending')->and($quote->status)->toBe('requires_review')->and($revision->lines)->toHaveCount(0);
+    expect($revision->suitability[0]['vehicle_type_key'])->toBe('demo_light_box_truck')->and($revision->suitability[0]['technically_fits'])->toBeFalse();
+    expect(array_column($revision->suitability[0]['reasons'], 'code'))->toContain('capacity_exceeded');
+    expect(array_column($revision->review_reasons, 'code'))->toContain('vehicle_review', 'pricing_incomplete');
+});
+it('preserves an explicitly reviewed itemised R1570 commercial offer through acceptance', function (): void {
+    [$tenant,$owner,$service] = quoteFixture();
+    $quote = calculatedQuote($service);
+    $quote = app(SubmitQuote::class)->execute($quote, quoteContact(), $quote->lock_version);
+    $original = $quote->currentRevision;
+    $originalSnapshot = $original->getAttributes();
+    $quote = app(ReviewQuote::class)->execute($quote, [
+        'lock_version' => $quote->lock_version, 'decision' => 'revise', 'reason' => 'Test-only explicit operator review of the itemised Light Box Truck scope.',
+        'currency' => 'ZAR', 'tax_basis_points' => 0, 'expires_at' => now()->addDay()->toIso8601String(), 'terms' => 'Test-only reviewed transport scope. Acceptance is not a confirmed booking.', 'exclusions' => '',
+        'lines' => [
+            ['description' => 'Light Box Truck base', 'amount_minor' => 55000],
+            ['description' => '25 km at R14', 'amount_minor' => 35000],
+            ['description' => 'One additional mover for three hours', 'amount_minor' => 45000],
+            ['description' => 'One extra driver hour', 'amount_minor' => 12000],
+            ['description' => 'One stair floor', 'amount_minor' => 10000],
+        ],
+    ], $owner->id);
+    $issued = $quote->currentRevision;
+    $snapshot = $issued->getAttributes();
+    $lines = $issued->lines->map->getAttributes()->all();
+    expect($issued->total_minor)->toBe(157000)->and($issued->approval)->toBe('approved')->and($quote->simulation_price_book_id)->toBeNull();
+    $quote = app(AcceptQuote::class)->execute($quote, $issued->public_id);
+    expect($quote->status)->toBe('accepted')->and($quote->currentRevision->getAttributes())->toBe($snapshot)->and($quote->currentRevision->lines->map->getAttributes()->all())->toBe($lines);
+    expect($original->fresh()->getAttributes())->toBe($originalSnapshot)->and($quote->accepted_terms_hash)->toBe($issued->terms_snapshot['hash']);
+});

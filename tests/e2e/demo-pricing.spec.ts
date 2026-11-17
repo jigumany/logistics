@@ -151,6 +151,37 @@ test("administrator edits demo rates, compares versions and simulates an itemise
       exact: true,
     }),
   ).toBeVisible();
+  const amounts: Record<string, number> = {
+    demo_light_box_truck_base: 55000,
+    demo_light_box_truck_distance: 35000,
+    driver_extra: 12000,
+    additional_movers: 45000,
+    stairs: 10000,
+    demo_light_box_truck_minimum: 0,
+    demo_tax: 0,
+  };
+  expect(
+    Object.fromEntries(
+      result.revision.lines.map(
+        (line: { code: string; amount_minor: number }) => [
+          line.code,
+          line.amount_minor,
+        ],
+      ),
+    ),
+  ).toEqual(amounts);
+  for (const line of result.revision.lines) {
+    const row = page.getByRole("row").filter({
+      has: page.getByRole("cell", { name: line.description, exact: true }),
+    });
+    await expect(row.getByRole("cell").nth(2)).toHaveText(line.rate_display);
+    await expect(row.getByRole("cell").nth(3)).toHaveText(
+      new Intl.NumberFormat("en-ZA", {
+        style: "currency",
+        currency: "ZAR",
+      }).format(line.amount_minor / 100),
+    );
+  }
   await expect(
     page.getByRole("heading", { name: "Why this price?", exact: true }),
   ).toBeVisible();
@@ -170,8 +201,41 @@ test("administrator edits demo rates, compares versions and simulates an itemise
       ),
     ),
   ).toBe(false);
+  const revisedResponse = page.waitForResponse(
+    (response) =>
+      response.request().method() === "POST" &&
+      response.url().endsWith("/calculate"),
+  );
   await page
     .getByRole("button", { name: "Recalculate simulation", exact: true })
     .click();
   await expect(page.getByText(/Revision 2/)).toBeVisible();
+  const revised = await (await revisedResponse).json();
+  expect(revised.revision.total_minor).toBe(157000);
+  expect(revised.revision.lines).toEqual(result.revision.lines);
+  await page.getByRole("button", { name: "Back", exact: true }).click();
+  await page.getByRole("button", { name: "Back", exact: true }).click();
+  await page.getByLabel("Weight per item (kg)", { exact: true }).fill("2100");
+  await page.getByRole("button", { name: "Continue", exact: true }).click();
+  const overloadedResponse = page.waitForResponse(
+    (response) =>
+      response.request().method() === "POST" &&
+      response.url().endsWith("/calculate"),
+  );
+  await page
+    .getByRole("button", { name: "Calculate estimate", exact: true })
+    .click();
+  const overloaded = await (await overloadedResponse).json();
+  expect(overloaded.status).toBe("requires_review");
+  expect(overloaded.revision.total_minor).toBeNull();
+  expect(overloaded.revision.approval).toBe("pending");
+  expect(overloaded.revision.suitability[0].technically_fits).toBe(false);
+  expect(
+    overloaded.revision.suitability[0].reasons.map(
+      (reason: { code: string }) => reason.code,
+    ),
+  ).toContain("capacity_exceeded");
+  await expect(
+    page.getByText("The price will be prepared after review.", { exact: true }),
+  ).toBeVisible();
 });
