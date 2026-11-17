@@ -25,6 +25,6 @@ class RouteCalculation extends Model
 
     protected function casts(): array
     {
-        return ['retain_until' => 'immutable_datetime', 'customer_metres' => 'integer', 'depot_metres' => 'integer', 'return_metres' => 'integer', 'duration_seconds' => 'integer', 'tolls_minor' => 'integer'];
+        return ['depot_duration_seconds' => 'integer', 'return_duration_seconds' => 'integer', 'retain_until' => 'immutable_datetime', 'customer_metres' => 'integer', 'depot_metres' => 'integer', 'return_metres' => 'integer', 'duration_seconds' => 'integer', 'tolls_minor' => 'integer'];
     }
 }

@@ -2,11 +2,15 @@
 
 namespace App\Domain\Quotes;
 
+use App\Domain\Identity\Membership;
 use App\Domain\Notifications\OutboxMessage;
+use App\Domain\Pricing\EstimateJobCost;
 use App\Domain\Pricing\PricingEngine;
 use App\Domain\Tenancy\AuditEntry;
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
 final class ReviewQuote
@@ -41,6 +45,16 @@ final class ReviewQuote
                 if (! in_array($quote->status, ['requires_review', 'quoted', 'expired'], true) || ! $quote->submitted_at || ($revision->coverage['outcome'] ?? '') === 'outside_supported_area') {
                     throw ValidationException::withMessages(['quote' => 'A submitted, serviceable request is required before issuing an approved offer.']);
                 }
+                $commercial = $revision->pricing_snapshot['configuration']['commercial'] ?? null;
+                if ($commercial) {
+                    $role = Membership::where('tenant_id', $quote->tenant_id)->where('user_id', $actorId)->firstOrFail()->role->value;
+                    if (! in_array($role, $commercial['override_roles'], true)) {
+                        throw new AuthorizationException('This price book does not authorize your role to override prices.');
+                    }
+                    if ($commercial['tax_reviewed'] && ($data['tax_basis_points'] !== $commercial['tax_basis_points'])) {
+                        throw ValidationException::withMessages(['tax_basis_points' => 'The override must preserve the published tax policy. Publish corrected tax configuration before recalculating.']);
+                    }
+                }
                 $rules = [];
                 foreach ($data['lines'] as $index => $line) {
                     $rules[] = ['code' => 'manual_'.($index + 1), 'label' => $line['description'], 'stage' => $line['amount_minor'] < 0 ? 'discount' : 'charge', 'kind' => 'fixed', 'metric' => $line['amount_minor'] < 0 ? null : 'base', 'rate_micros' => abs($line['amount_minor']) * 10000, 'position' => $index];
@@ -49,7 +63,10 @@ final class ReviewQuote
                     $rules[] = ['code' => 'manual_tax', 'label' => 'Tax ('.($data['tax_basis_points'] / 100).'%)', 'stage' => 'tax', 'kind' => 'percent', 'metric' => null, 'rate_micros' => $data['tax_basis_points'] * 100, 'position' => 0];
                 }
                 $pricing = app(PricingEngine::class)->calculate($data['currency'], $rules, ['base' => '1']);
-                $changes = ['price_book_id' => null, 'approval' => 'approved', 'review_reasons' => array_map(fn ($reason) => [...$reason, 'resolved' => true], $revision->review_reasons), 'pricing' => $pricing, 'pricing_snapshot' => ['schema_version' => 1, 'manual_override' => true, 'reason' => $data['reason'], 'actor_id' => $actorId, 'previous_revision_public_id' => $revision->public_id, 'rules' => $rules, 'metrics' => ['base' => '1']], 'terms' => $data['terms'], 'exclusions' => $data['exclusions'] ?? '', 'expires_at' => $data['expires_at']];
+                $oldCosts = $revision->pricing_snapshot['internal_costs'] ?? ['status' => 'incomplete'];
+                $costs = $data['currency'] === $revision->currency && ($oldCosts['status'] ?? '') === 'estimated' ? app(EstimateJobCost::class)->withRevenue($oldCosts, $pricing['subtotal_minor']) : ['status' => 'incomplete', 'reason' => 'Manual pricing has no comparable cost estimate in this currency.'];
+                $termsSnapshot = app(QuotationTerms::class)->record($data['terms'], $data['exclusions'] ?? '', (string) Str::ulid());
+                $changes = ['terms_snapshot' => $termsSnapshot, 'price_book_id' => null, 'approval' => 'approved', 'review_reasons' => array_map(fn ($reason) => [...$reason, 'resolved' => true], $revision->review_reasons), 'pricing' => $pricing, 'pricing_snapshot' => ['configuration' => $revision->pricing_snapshot['configuration'] ?? [], 'internal_costs' => $costs, 'source_price_book' => array_intersect_key($revision->pricing_snapshot, array_flip(['price_book_public_id', 'version'])), 'schema_version' => 1, 'manual_override' => true, 'reason' => $data['reason'], 'actor_id' => $actorId, 'previous_revision_public_id' => $revision->public_id, 'rules' => $rules, 'metrics' => ['base' => '1']], 'terms' => $data['terms'], 'exclusions' => $data['exclusions'] ?? '', 'expires_at' => $data['expires_at']];
                 if ($quote->status !== 'requires_review') {
                     app(QuoteLifecycle::class)->transition($quote, QuoteStatus::Calculating, $actorId);
                 }

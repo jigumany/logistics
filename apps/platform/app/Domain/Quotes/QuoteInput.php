@@ -34,7 +34,9 @@ final class QuoteInput
             'inventory.*.weight_certainty' => ['sometimes', 'in:known,estimated,unknown'],
             'inventory.*.quantity' => ['required', 'integer', 'between:1,1000'],
             'inventory.*.instructions' => ['nullable', 'string', 'max:2000'],
-            'details' => ['required', 'array:pickup_stairs,delivery_stairs,pickup_lift,delivery_lift,pickup_carry_metres,delivery_carry_metres,parking_limited,difficult_access,special_equipment,packing,waiting_minutes'],
+            'details.declared_goods_value_minor' => ['nullable', 'integer', 'between:0,100000000000'],
+            'details.declared_goods_currency' => ['nullable', 'required_with:details.declared_goods_value_minor', 'in:ZAR,USD,EUR,GBP'],
+            'details' => ['required', 'array:pickup_stairs,delivery_stairs,pickup_lift,delivery_lift,pickup_carry_metres,delivery_carry_metres,parking_limited,difficult_access,special_equipment,packing,waiting_minutes,declared_goods_value_minor,declared_goods_currency'],
         ];
         foreach (['length_cm', 'width_cm', 'height_cm', 'weight_kg'] as $field) {
             $rules['inventory.*.'.$field] = ['nullable', 'numeric', 'regex:/^\d{1,6}(\.\d{1,6})?$/D', $field === 'weight_kg' ? 'min:0' : 'gt:0'];
@@ -60,6 +62,9 @@ final class QuoteInput
         $data = Validator::make($input, $this->rules())->validate();
         $data['preferred_time'] = ($data['preferred_time'] ?? '') ?: null;
         foreach ($data['details'] as $field => $value) {
+            if ($field === 'declared_goods_currency' || $value === null) {
+                continue;
+            }
             $data['details'][$field] = in_array($field, ['pickup_lift', 'delivery_lift', 'parking_limited', 'difficult_access', 'special_equipment', 'packing'], true) ? (bool) $value : (int) $value;
         }
         foreach ($data['inventory'] as &$entry) {

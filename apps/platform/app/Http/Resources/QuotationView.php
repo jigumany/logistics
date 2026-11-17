@@ -39,6 +39,7 @@ final class QuotationView
         if ($data['contact_snapshot'] === []) {
             $data['contact_snapshot'] = new \stdClass;
         }
+        $data['terms_version'] = $revision->terms_snapshot['version'] ?? 'legacy';
         $data['expired'] = $revision->expires_at->isPast();
         $rules = collect($revision->pricing_snapshot['rules'] ?? [])->keyBy('code');
         $data['lines'] = $revision->lines->map(fn ($line) => [...$line->only('code', 'description', 'stage', 'quantity', 'rate_micros', 'amount_minor'), ...app(DescribePriceLine::class)->execute($rules->get($line->code, ['rate_micros' => $line->rate_micros]), $revision->currency ?? '')])->all();
@@ -47,7 +48,7 @@ final class QuotationView
         $data['preferred_time'] = $revision->input['preferred_time'] ?? null;
         $data['inventory'] = $revision->inventory->map(fn ($item) => $item->only('item_key', 'public_id', 'name', 'quantity', 'length_cm', 'width_cm', 'height_cm', 'weight_kg', 'volume_m3', 'measurement_source', 'fragile', 'oversized', 'stackable', 'rotation_allowed', 'instructions', 'photos', 'provenance'))->all();
         $data['stops'] = $revision->stops->map(fn ($stop) => $stop->only('position', 'kind', 'address_line', 'suburb', 'city', 'postal_code', 'country_code', 'instructions', 'verification'))->all();
-        $data['review_reasons'] = array_map(fn ($reason) => $internal ? $reason : array_intersect_key($reason, array_flip(['code', 'customer_message'])), $internal ? $revision->review_reasons : array_values(array_filter($revision->review_reasons, fn ($reason) => empty($reason['resolved']))));
+        $data['review_reasons'] = array_map(fn ($reason) => $internal ? $reason : ['code' => in_array($reason['code'], ['below_minimum_margin', 'cost_estimate_incomplete', 'commercial_readiness'], true) ? 'operations_review' : $reason['code'], 'customer_message' => $reason['customer_message']], $internal ? $revision->review_reasons : array_values(array_filter($revision->review_reasons, fn ($reason) => empty($reason['resolved']))));
         $data['pricing_method'] = $revision->total_minor === null ? 'Awaiting an operations price review.' : (($revision->pricing_snapshot['manual_override'] ?? false) ? 'Prepared by the operations team.' : 'Calculated estimate using the published price book.');
         if ($internal) {
             $data['coverage'] = $revision->coverage;

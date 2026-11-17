@@ -24,7 +24,7 @@ final class GoogleRoutingProvider implements RoutingProvider
             $depotJourney = $depot ? $this->journey([$depot, $stops[0]]) : null;
             $returnJourney = $depot ? $this->journey([$stops[array_key_last($stops)], $depot]) : null;
 
-            return ['provider' => 'google', 'status' => 'available', 'failure_code' => null, 'customer_metres' => $journey['metres'], 'duration_seconds' => $journey['seconds'], 'depot_metres' => $depotJourney['metres'] ?? null, 'return_metres' => $returnJourney['metres'] ?? null, 'tolls_minor' => null, 'retain_until' => now()->addHours(min(720, (int) config('maps.google.retention_hours')))->toIso8601String()];
+            return ['provider' => 'google', 'status' => 'available', 'failure_code' => null, 'customer_metres' => $journey['metres'], 'duration_seconds' => $journey['seconds'], 'depot_metres' => $depotJourney['metres'] ?? null, 'return_metres' => $returnJourney['metres'] ?? null, 'depot_duration_seconds' => $depotJourney['seconds'] ?? null, 'return_duration_seconds' => $returnJourney['seconds'] ?? null, 'tolls_minor' => null, 'retain_until' => now()->addHours(min(720, (int) config('maps.google.retention_hours')))->toIso8601String()];
         } catch (ProviderFailure $failure) {
             $this->transport->recordFailure($failure);
 

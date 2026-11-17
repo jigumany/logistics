@@ -23,8 +23,10 @@ const steps = [
 export default function QuoteWizard({
     business,
     services,
+    currency = "ZAR",
 }: {
     business: { name: string; slug: string };
+    currency?: string;
     services: { public_id: string; name: string; description: string | null }[];
 }) {
     const [recovered] = useState(() => readDraft(business.slug));
@@ -445,6 +447,52 @@ export default function QuoteWizard({
                                     Tell us about both properties so loading and
                                     access can be assessed accurately.
                                 </p>
+                                <label>
+                                    Declared goods value ({currency}) · optional
+                                    <input
+                                        type="number"
+                                        min="0"
+                                        step="0.01"
+                                        value={
+                                            input.details
+                                                .declared_goods_value_minor ==
+                                            null
+                                                ? ""
+                                                : input.details
+                                                      .declared_goods_value_minor /
+                                                  100
+                                        }
+                                        onChange={(event) =>
+                                            changeInput({
+                                                details: {
+                                                    ...input.details,
+                                                    declared_goods_value_minor:
+                                                        event.target.value ===
+                                                        ""
+                                                            ? null
+                                                            : Math.round(
+                                                                  Number(
+                                                                      event
+                                                                          .target
+                                                                          .value,
+                                                                  ) * 100,
+                                                              ),
+                                                    declared_goods_currency:
+                                                        currency as
+                                                            | "ZAR"
+                                                            | "USD"
+                                                            | "EUR"
+                                                            | "GBP",
+                                                },
+                                            })
+                                        }
+                                    />
+                                    <span className="text-xs font-normal text-slate-500">
+                                        This declaration does not confirm
+                                        insurance coverage. The operations team
+                                        will confirm applicable terms.
+                                    </span>
+                                </label>
                                 <div className="grid gap-5 sm:grid-cols-2">
                                     {(
                                         [

@@ -209,7 +209,10 @@ test("owner can save a company catalogue item and a complete draft price book", 
   const rates = page.getByLabel("Rate (ZAR)", { exact: true });
   await rates.nth(0).fill("100.00");
   await rates.nth(1).fill("5.00");
-  for (const checkbox of await page.getByRole("checkbox").all()) {
+  for (const checkbox of await page
+    .getByRole("group", { name: "Included pricing components" })
+    .getByRole("checkbox")
+    .all()) {
     await checkbox.check();
   }
   await page.getByLabel("base", { exact: true }).uncheck();

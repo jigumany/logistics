@@ -11,7 +11,14 @@ import CompanyLayout from "../../layouts/CompanyLayout";
 export default function Dashboard({
     settings,
     services,
+    readiness = [],
 }: {
+    readiness?: {
+        state: string;
+        service_public_id: string;
+        service_name: string;
+        checks: { code: string; label: string; passed: boolean }[];
+    }[];
     settings: CompanySettings;
     services: ServiceType[];
 }) {
@@ -39,6 +46,78 @@ export default function Dashboard({
                     preferences.
                 </p>
             </div>
+            {readiness.length > 0 && (
+                <Card className="mb-8">
+                    <div className="mb-5 flex flex-wrap items-start justify-between gap-3">
+                        <div>
+                            <h2 className="text-lg font-semibold">
+                                Quotation readiness
+                            </h2>
+                            <p className="mt-1 text-xs text-slate-500">
+                                Manual review stays available. Automatic
+                                estimates require all mandatory checks.
+                            </p>
+                        </div>
+                        <Link
+                            className="text-xs font-semibold text-teal-800"
+                            href={"/c/" + company?.slug + "/price-books"}
+                        >
+                            Configure pricing ↗
+                        </Link>
+                    </div>
+                    <div className="grid gap-4 lg:grid-cols-2">
+                        {readiness.map((service) => (
+                            <details
+                                key={service.service_public_id}
+                                className="rounded-lg border border-slate-200 p-4"
+                            >
+                                <summary className="cursor-pointer text-sm font-semibold">
+                                    {service.service_name}
+                                    <span
+                                        className={
+                                            "mt-2 block text-xs font-normal " +
+                                            (service.state ===
+                                            "ready_for_live_automatic_quotations"
+                                                ? "text-teal-700"
+                                                : "text-amber-700")
+                                        }
+                                    >
+                                        {service.state.replaceAll("_", " ")}
+                                    </span>
+                                </summary>
+                                <ul className="mt-4 grid gap-2">
+                                    {service.checks.map((check) => (
+                                        <li
+                                            key={check.code}
+                                            className={
+                                                "flex gap-2 text-xs " +
+                                                (check.passed
+                                                    ? "text-teal-700"
+                                                    : "text-slate-500")
+                                            }
+                                        >
+                                            <span>
+                                                {check.passed ? "✓" : "○"}
+                                            </span>
+                                            {check.label}
+                                        </li>
+                                    ))}
+                                </ul>
+                                <Link
+                                    href={
+                                        "/c/" +
+                                        company?.slug +
+                                        "/quotation-policies"
+                                    }
+                                    className="mt-4 inline-block text-xs font-semibold text-teal-800"
+                                >
+                                    Review quotation policies ↗
+                                </Link>
+                            </details>
+                        ))}
+                    </div>
+                </Card>
+            )}
             <div className="mb-8 grid gap-4 xl:grid-cols-3">
                 {[
                     {

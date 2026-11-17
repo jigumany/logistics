@@ -6,6 +6,7 @@ use App\Domain\Resources\ResourceRegistry;
 use App\Domain\Tenancy\RecordsAdministrativeChange;
 use App\Domain\Tenancy\Tenant;
 use App\Domain\Tenancy\TenantContext;
+use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
@@ -29,7 +30,15 @@ final class SaveVehicle
                 throw ValidationException::withMessages(['usable_volume_m3' => 'Usable volume cannot exceed the cargo envelope.']);
             }
             $vehicle ??= new Vehicle;
-            $vehicle->fill($data)->save();
+            $verified = (bool) ($data['capacity_verified'] ?? false);
+            if ($verified && strlen(trim($data['capacity_verification_note'] ?? '')) < 3) {
+                throw ValidationException::withMessages(['capacity_verification_note' => 'Record the actual measurements or specification evidence before verifying capacity.']);
+            }
+            $vehicle->fill($data);
+            $capacityChanged = $vehicle->isDirty(['vehicle_type_id', 'registration_number', 'usable_volume_m3', 'payload_kg', 'cargo_length_m', 'cargo_width_m', 'cargo_height_m', 'max_item_length_m', 'max_item_width_m', 'max_item_height_m', 'capacity_margin_basis_points']);
+            $vehicle->capacity_verified = $verified && (! $capacityChanged || array_key_exists('capacity_verified', $data));
+            $vehicle->capacity_verified_at = $vehicle->capacity_verified ? CarbonImmutable::now() : null;
+            $vehicle->save();
             app(ResourceRegistry::class)->vehicle($vehicle);
             app(RecordsAdministrativeChange::class)->record($vehicle, 'vehicle.saved', $actorId);
 

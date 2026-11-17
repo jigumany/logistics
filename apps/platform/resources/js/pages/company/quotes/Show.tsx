@@ -2,6 +2,7 @@ import { Head, useForm, usePage } from "@inertiajs/react";
 import { useState } from "react";
 import type { SharedProps } from "@logistics/types";
 import { Button, Card } from "@logistics/design-system";
+import PricingExplanation from "../../../components/PricingExplanation";
 import CompanyLayout from "../../../layouts/CompanyLayout";
 import QuoteSummary from "../../../components/QuoteSummary";
 import Pagination, { type Paged } from "../../../components/Pagination";
@@ -408,6 +409,9 @@ export default function Show({
                     </Card>
                 </div>
                 <div className="grid gap-6">
+                    {quote.revision && (
+                        <PricingExplanation revision={quote.revision} />
+                    )}
                     {canManage &&
                         ![
                             "accepted",

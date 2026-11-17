@@ -10,6 +10,7 @@ use App\Domain\Pricing\PricingRule;
 use App\Domain\Pricing\PricingRules;
 use App\Domain\Quotes\QuotePermissions;
 use App\Domain\Services\TenantService;
+use App\Domain\Tenancy\CompanySettings;
 use App\Http\Requests\PriceBookRequest;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -33,7 +34,7 @@ final class PriceBookController extends Controller
         $model = $book || $copy ? PriceBook::where('public_id', $book ?? $copy)->firstOrFail() : null;
         $data = $model ? [...$model->toArray(), 'service_public_id' => TenantService::whereKey($model->service_id)->value('public_id'), 'rules' => PricingRule::where('price_book_id', $model->id)->orderBy('position')->get()] : null;
 
-        return Inertia::render('company/pricing/Edit', ['book' => $data, 'isNew' => $book === null, 'services' => TenantService::where('active', true)->orderBy('id')->get(['public_id', 'name']), 'depots' => Depot::where('active', true)->where('coordinates_verified', true)->orderBy('name')->get(['public_id', 'name']), 'vehicleTypes' => VehicleType::where('active', true)->orderBy('id')->get(['key', 'name']), 'metrics' => PricingRules::METRICS]);
+        return Inertia::render('company/pricing/Edit', ['book' => $data, 'isNew' => $book === null, 'services' => TenantService::where('active', true)->orderBy('id')->get(['public_id', 'name']), 'depots' => Depot::where('active', true)->where('coordinates_verified', true)->orderBy('name')->get(['public_id', 'name']), 'vehicleTypes' => VehicleType::where('active', true)->orderBy('id')->get(['key', 'name']), 'companyTaxRegistration' => CompanySettings::value('vat_number') ?? '', 'metrics' => PricingRules::ALL_METRICS]);
     }
 
     public function store(PriceBookRequest $request, ManagePriceBook $action): RedirectResponse

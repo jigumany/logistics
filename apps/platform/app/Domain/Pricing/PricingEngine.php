@@ -8,7 +8,7 @@ use InvalidArgumentException;
 
 final class PricingEngine
 {
-    public const VERSION = '1';
+    public const VERSION = '2';
 
     public function calculate(string $currency, array $rules, array $metrics, ?string $vehicleType = null): array
     {

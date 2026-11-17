@@ -56,7 +56,7 @@ final class QuotationEligibility
             if (($item['provenance']['weight'] ?? '') === 'customer' && ($item['provenance']['weight_certainty'] ?? '') !== 'known') {
                 $add('uncertain_weight', 'Some customer weight estimates need confirmation.');
             }
-            if ($item['oversized'] || $item['instructions'] || ! $item['stackable'] || ! $item['rotation_allowed']) {
+            if ($item['fragile'] || $item['oversized'] || $item['instructions'] || ! $item['stackable'] || ! $item['rotation_allowed']) {
                 $add('special_handling', 'Some items or packing restrictions need a specialist review.');
                 break;
             }

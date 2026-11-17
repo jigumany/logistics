@@ -3,6 +3,7 @@
 namespace App\Domain\Quotes;
 
 use App\Domain\Notifications\OutboxMessage;
+use App\Domain\Pricing\PricingEngine;
 use App\Domain\Routing\RouteCalculation;
 use App\Domain\Services\TenantService;
 use Illuminate\Support\Facades\DB;
@@ -22,7 +23,7 @@ final class CalculateQuote
                 throw ValidationException::withMessages(['quote' => 'This quotation is closed. Start a new request to change its inputs.']);
             }
             $hash = $data === null ? $quote->input_hash : app(QuoteInput::class)->hash($data);
-            if (! $force && $hash === $quote->input_hash && $quote->currentRevision && $quote->currentRevision->expires_at->isFuture() && $quote->status !== 'calculating') {
+            if (! $force && $hash === $quote->input_hash && $quote->currentRevision && $quote->currentRevision->expires_at->isFuture() && $quote->status !== 'calculating' && ($quote->submitted_at || $quote->currentRevision->approval !== 'automatic' || ($quote->currentRevision->pricing_snapshot['engine_version'] ?? null) === PricingEngine::VERSION)) {
                 return [$quote, $quote->lock_version, true];
             }
             if ($quote->lock_version !== $expectedVersion || ($quote->status === 'calculating' && $quote->updated_at->gt(now()->subMinutes(2)))) {
@@ -55,7 +56,7 @@ final class CalculateQuote
                 if ($quote->lock_version !== $lease || $quote->status !== 'calculating') {
                     throw ValidationException::withMessages(['lock_version' => 'The inputs changed during calculation. Refresh and retry.']);
                 }
-                $route = RouteCalculation::create([...array_intersect_key($result['route'], array_flip(['provider', 'status', 'failure_code', 'customer_metres', 'depot_metres', 'return_metres', 'duration_seconds', 'tolls_minor', 'retain_until'])), 'quote_id' => $quote->id, 'input_hash' => $quote->input_hash]);
+                $route = RouteCalculation::create([...array_intersect_key($result['route'], array_flip(['provider', 'status', 'failure_code', 'customer_metres', 'depot_metres', 'return_metres', 'duration_seconds', 'depot_duration_seconds', 'return_duration_seconds', 'tolls_minor', 'retain_until'])), 'quote_id' => $quote->id, 'input_hash' => $quote->input_hash]);
                 $result['route_calculation_id'] = $route->id;
                 $revision = app(WriteQuoteRevision::class)->execute($quote, $result, $quote->currentRevision->contact_snapshot ?? []);
                 app(QuoteLifecycle::class)->transition($quote, $revision->approval === 'automatic' ? QuoteStatus::Quoted : QuoteStatus::RequiresReview);

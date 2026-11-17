@@ -299,6 +299,8 @@ export const modules: Record<string, ModuleConfig> = {
             capacity_margin_basis_points: 1000,
             operating_restrictions: "",
             notes: "",
+            capacity_verified: false,
+            capacity_verification_note: "",
         },
         fields: [
             f("name", "Vehicle name", "text", { required: true }),
@@ -344,6 +346,22 @@ export const modules: Record<string, ModuleConfig> = {
                 {
                     required: true,
                     help: "Percentage of volume and payload held in reserve.",
+                },
+            ),
+            f(
+                "capacity_verified",
+                "Actual vehicle capacity verified",
+                "checkbox",
+                {
+                    help: "Confirm actual truck specifications, not illustrative vehicle catalogue defaults.",
+                },
+            ),
+            f(
+                "capacity_verification_note",
+                "Capacity verification evidence",
+                "textarea",
+                {
+                    help: "Record the source, measurements and date. Reconfirm after capacity changes.",
                 },
             ),
             f("operating_restrictions", "Operating restrictions", "textarea"),

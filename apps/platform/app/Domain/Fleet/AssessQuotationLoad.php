@@ -48,6 +48,6 @@ final class AssessQuotationLoad
             }
         }
 
-        return ['vehicle_public_id' => $vehicle->public_id, 'vehicle_name' => $vehicle->name, 'vehicle_registration' => $vehicle->registration_number, 'vehicle_type_key' => $vehicle->type->key, 'status' => $unsuitable ? 'unsuitable' : ($reasons ? 'requires_review' : 'suitable'), 'technically_fits' => ! $unsuitable, 'reasons' => array_values(array_unique($reasons, SORT_REGULAR)), 'screen' => $screen, 'limitation' => $screen['limitation']];
+        return ['capacity_verified' => (bool) $vehicle->capacity_verified, 'capacity_verification_note' => $vehicle->capacity_verification_note, 'vehicle_public_id' => $vehicle->public_id, 'vehicle_name' => $vehicle->name, 'vehicle_registration' => $vehicle->registration_number, 'vehicle_type_key' => $vehicle->type->key, 'status' => $unsuitable ? 'unsuitable' : ($reasons ? 'requires_review' : 'suitable'), 'technically_fits' => ! $unsuitable, 'reasons' => array_values(array_unique($reasons, SORT_REGULAR)), 'screen' => $screen, 'limitation' => $screen['limitation']];
     }
 }

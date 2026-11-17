@@ -8,6 +8,10 @@ final class PricingRules
 {
     public const METRICS = ['base', 'chargeable_km', 'vehicle_category', 'labour_hours', 'loading_hours', 'unloading_hours', 'stairs_flights', 'carry_metres', 'additional_stops', 'waiting_hours', 'after_hours', 'weekend', 'holiday', 'packing_items', 'special_handling_items', 'tolls'];
 
+    public const COMMERCIAL_METRICS = ['driver_hours', 'mover_hours', 'overtime_hours', 'difficult_access', 'oversized_items'];
+
+    public const ALL_METRICS = [...self::METRICS, ...self::COMMERCIAL_METRICS];
+
     public const STAGES = ['charge' => 0, 'surcharge' => 1, 'discount' => 2, 'minimum' => 3, 'tax' => 4];
 
     public function validate(array $rules): array
@@ -16,7 +20,7 @@ final class PricingRules
             throw new InvalidArgumentException('A price book requires 1–100 rules.');
         }
         $codes = [];
-        $minimums = 0;
+        $minimums = [];
         foreach ($rules as $rule) {
             if (! preg_match('/^[a-z][a-z0-9_]{0,59}$/D', $rule['code'] ?? '') || isset($codes[$rule['code']]) || empty($rule['label']) || strlen($rule['label']) > 160) {
                 throw new InvalidArgumentException('Rules need unique machine-readable codes and clear labels.');
@@ -26,14 +30,17 @@ final class PricingRules
                 throw new InvalidArgumentException('Invalid pricing stage, kind, precision or ordering.');
             }
             if (in_array($rule['stage'], ['charge', 'surcharge'], true)) {
-                if (! in_array($rule['metric'] ?? '', self::METRICS, true) || $rule['kind'] === 'percent') {
+                if (! in_array($rule['metric'] ?? '', self::ALL_METRICS, true) || ($rule['kind'] === 'percent' && ! ($rule['stage'] === 'surcharge' && in_array($rule['metric'], ['weekend', 'holiday', 'after_hours', 'difficult_access'], true)))) {
                     throw new InvalidArgumentException('Charges require a known quantity metric and a fixed or unit rate.');
                 }
-            } elseif (! empty($rule['metric']) || ! empty($rule['vehicle_type_key'])) {
+            } elseif (! empty($rule['metric']) || (! empty($rule['vehicle_type_key']) && $rule['stage'] !== 'minimum')) {
                 throw new InvalidArgumentException('Discounts, minimums and taxes apply to the complete subtotal.');
             }
-            if ($rule['stage'] === 'minimum' && ($rule['kind'] !== 'fixed' || ++$minimums > 1)) {
+            if ($rule['stage'] === 'minimum' && ($rule['kind'] !== 'fixed' || isset($minimums[$rule['vehicle_type_key'] ?? '*']))) {
                 throw new InvalidArgumentException('Use one fixed minimum charge.');
+            }
+            if ($rule['stage'] === 'minimum') {
+                $minimums[$rule['vehicle_type_key'] ?? '*'] = true;
             }
             if ($rule['stage'] === 'tax' && $rule['kind'] !== 'percent') {
                 throw new InvalidArgumentException('Taxes require an explicit percentage.');

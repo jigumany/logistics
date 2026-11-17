@@ -13,10 +13,11 @@ final class PriceBookConfiguration
     public function validate(array $configuration, array $rules): array
     {
         $data = Validator::make($configuration, [
+            'commercial' => ['sometimes', 'array'],
             'depot_public_id' => ['nullable', 'ulid', Rule::exists('depots', 'public_id')->where('tenant_id', app(TenantContext::class)->tenant()->id)->where('active', true)->where('coordinates_verified', true)],
-            'schema_version' => ['required', 'integer', 'in:1'],
-            'included_metrics' => ['required', 'array', 'max:17'],
-            'included_metrics.*' => ['required', 'distinct', Rule::in(PricingRules::METRICS)],
+            'schema_version' => ['required', 'integer', 'in:1,2'],
+            'included_metrics' => ['required', 'array', 'max:30'],
+            'included_metrics.*' => ['required', 'distinct', Rule::in(PricingRules::ALL_METRICS)],
             'crew_size' => ['required', 'integer', 'between:1,20'],
             'loading_minutes_per_complexity' => ['required', 'numeric', 'between:0,120'],
             'unloading_minutes_per_complexity' => ['required', 'numeric', 'between:0,120'],
@@ -37,8 +38,17 @@ final class PriceBookConfiguration
         if (array_diff($categories, $knownCategories)) {
             throw ValidationException::withMessages(['rules' => 'Select active vehicle categories for conditional pricing.']);
         }
+        if ((int) $data['schema_version'] === 2) {
+            $data['commercial'] = app(CommercialConfiguration::class)->validate($configuration['commercial'] ?? [], $rules);
+            if ($data['commercial']['cost_distance_basis'] === 'operational' && empty($data['depot_public_id'])) {
+                throw ValidationException::withMessages(['commercial' => 'Operational cost estimates require a verified depot.']);
+            }
+        } else {
+            unset($data['commercial']);
+        }
+        $requiredMetrics = (int) $data['schema_version'] === 2 ? PricingRules::ALL_METRICS : PricingRules::METRICS;
         $priced = array_values(array_filter(array_column($rules, 'metric')));
-        if (array_intersect($priced, $data['included_metrics']) || array_diff(PricingRules::METRICS, array_merge($priced, $data['included_metrics']))) {
+        if (array_intersect($priced, $data['included_metrics']) || array_diff($requiredMetrics, array_merge($priced, $data['included_metrics']))) {
             throw ValidationException::withMessages(['configuration' => 'Every charge metric must be explicitly priced or included, without overlapping definitions.']);
         }
 

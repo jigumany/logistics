@@ -114,7 +114,7 @@ it('prices a suitable vehicle rather than issuing an automatic offer on a review
     $restricted = Vehicle::firstOrFail();
     $restricted->operating_restrictions = 'Operator review required.';
     $restricted->save();
-    $suitable = app(SaveVehicle::class)->execute(['name' => 'Suitable truck', 'registration_number' => 'QUOTE002', 'vehicle_type_id' => VehicleType::where('key', 'sample_medium_truck')->value('id'), 'status' => 'available', 'capacity_margin_basis_points' => 1000], $owner->id);
+    $suitable = app(SaveVehicle::class)->execute(['capacity_verified' => true, 'capacity_verification_note' => 'Illustrative test specification check.', 'name' => 'Suitable truck', 'registration_number' => 'QUOTE002', 'vehicle_type_id' => VehicleType::where('key', 'sample_medium_truck')->value('id'), 'status' => 'available', 'capacity_margin_basis_points' => 1000], $owner->id);
     $quote = calculatedQuote($service);
     expect($quote->status)->toBe('quoted')->and($quote->currentRevision->pricing_snapshot['screened_vehicle_public_id'])->toBe($suitable->public_id);
 });

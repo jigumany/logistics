@@ -4,6 +4,7 @@ namespace App\Domain\Quotes;
 
 use App\Domain\Customers\Customer;
 use App\Domain\Notifications\OutboxMessage;
+use App\Domain\Pricing\PricingEngine;
 use App\Domain\Tenancy\Tenant;
 use App\Domain\Tenancy\TenantContext;
 use Carbon\CarbonImmutable;
@@ -27,6 +28,9 @@ final class SubmitQuote
             $revision = $quote->currentRevision;
             if ($quote->submitted_at && $revision && $revision->contact_snapshot === $contact) {
                 return $quote;
+            }
+            if (! $quote->submitted_at && $revision?->approval === 'automatic' && (($revision->pricing_snapshot['engine_version'] ?? null) !== PricingEngine::VERSION || ! ($revision->pricing_snapshot['readiness']['automatic_ready'] ?? false))) {
+                throw ValidationException::withMessages(['quote' => 'Recalculate this estimate so the current commercial checks and terms can be reviewed.']);
             }
             if (! in_array($quote->status, ['quoted', 'requires_review'], true) || ! $revision || $revision->expires_at->isPast() || $quote->lock_version !== $expectedVersion) {
                 throw ValidationException::withMessages(['quote' => 'Refresh and calculate this quotation before submitting it.']);

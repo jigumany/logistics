@@ -2,6 +2,9 @@ import { Head, Link, router, useForm, usePage } from "@inertiajs/react";
 import { useState } from "react";
 import type { SharedProps } from "@logistics/types";
 import { Button, Card } from "@logistics/design-system";
+import CommercialPricingFields, {
+    initialCommercialPricing,
+} from "../../../components/CommercialPricingFields";
 import CompanyLayout from "../../../layouts/CompanyLayout";
 import type {
     BookConfiguration,
@@ -22,6 +25,7 @@ export default function Edit({
     depots,
     vehicleTypes,
     metrics,
+    companyTaxRegistration = "",
 }: {
     book: PriceBookRecord | null;
     isNew?: boolean;
@@ -29,6 +33,7 @@ export default function Edit({
     depots: { public_id: string; name: string }[];
     vehicleTypes: { key: string; name: string }[];
     metrics: string[];
+    companyTaxRegistration?: string;
 }) {
     const { company } = usePage<SharedProps>().props;
     const base = "/c/" + company?.slug + "/price-books";
@@ -321,6 +326,45 @@ export default function Edit({
                             are separate. Only the journey basis you select is
                             chargeable. Quotes never reserve vehicles.
                         </p>
+                        <label className="flex items-center gap-3">
+                            <input
+                                type="checkbox"
+                                className="!w-auto"
+                                disabled={readOnly}
+                                checked={
+                                    form.data.configuration.schema_version === 2
+                                }
+                                onChange={(event) =>
+                                    changeConfig({
+                                        schema_version: event.target.checked
+                                            ? 2
+                                            : 1,
+                                        commercial: event.target.checked
+                                            ? (form.data.configuration
+                                                  .commercial ?? {
+                                                  ...initialCommercialPricing,
+                                                  tax_registration:
+                                                      companyTaxRegistration,
+                                              })
+                                            : undefined,
+                                    })
+                                }
+                            />
+                            Use commercial controls and readiness validation
+                        </label>
+                        {form.data.configuration.schema_version === 2 && (
+                            <CommercialPricingFields
+                                taxRegistration={companyTaxRegistration}
+                                currency={form.data.currency}
+                                value={
+                                    form.data.configuration.commercial ??
+                                    initialCommercialPricing
+                                }
+                                onChange={(commercial) =>
+                                    changeConfig({ commercial })
+                                }
+                            />
+                        )}
                         <h2 className="text-xl font-bold">
                             Loading and operational assumptions
                         </h2>
@@ -509,7 +553,13 @@ export default function Edit({
                                                   ? ["fixed"]
                                                   : rule.stage === "discount"
                                                     ? ["fixed", "percent"]
-                                                    : ["fixed", "rate"]
+                                                    : rule.stage === "surcharge"
+                                                      ? [
+                                                            "fixed",
+                                                            "rate",
+                                                            "percent",
+                                                        ]
+                                                      : ["fixed", "rate"]
                                             ).map((value) => (
                                                 <option key={value}>
                                                     {value}
@@ -580,6 +630,36 @@ export default function Edit({
                                             </label>
                                         </>
                                     )}
+                                    {rule.stage === "minimum" && (
+                                        <label>
+                                            Vehicle category for minimum
+                                            <select
+                                                aria-label="Vehicle category for minimum"
+                                                value={
+                                                    rule.vehicle_type_key ?? ""
+                                                }
+                                                onChange={(event) =>
+                                                    changeRule(index, {
+                                                        vehicle_type_key:
+                                                            event.target
+                                                                .value || null,
+                                                    })
+                                                }
+                                            >
+                                                <option value="">
+                                                    All categories
+                                                </option>
+                                                {vehicleTypes.map((type) => (
+                                                    <option
+                                                        key={type.key}
+                                                        value={type.key}
+                                                    >
+                                                        {type.name}
+                                                    </option>
+                                                ))}
+                                            </select>
+                                        </label>
+                                    )}
                                     <label>
                                         {rule.kind === "percent"
                                             ? "Percentage"
@@ -645,7 +725,11 @@ export default function Edit({
                             explicitly included below. Do not mark a priced
                             component as included.
                         </p>
-                        <div className="grid gap-3 sm:grid-cols-2">
+                        <div
+                            role="group"
+                            aria-label="Included pricing components"
+                            className="grid gap-3 sm:grid-cols-2"
+                        >
                             {metrics.map((metric) => (
                                 <label
                                     className="flex items-center gap-3"

@@ -12,6 +12,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use LogicException;
 
 /**
+ * @property array|null $terms_snapshot
  * @property int $id
  * @property int $tenant_id
  * @property string $public_id
@@ -44,7 +45,7 @@ class QuoteRevision extends Model
 
     protected function casts(): array
     {
-        return ['branding_snapshot' => 'array', 'input' => 'array', 'inventory_summary' => 'array', 'coverage' => 'array', 'suitability' => 'array', 'review_reasons' => 'array', 'pricing_snapshot' => 'array', 'contact_snapshot' => 'array', 'expires_at' => 'immutable_datetime', 'sealed_at' => 'immutable_datetime', 'number' => 'integer', 'total_minor' => 'integer', 'subtotal_minor' => 'integer', 'tax_minor' => 'integer'];
+        return ['terms_snapshot' => 'array', 'branding_snapshot' => 'array', 'input' => 'array', 'inventory_summary' => 'array', 'coverage' => 'array', 'suitability' => 'array', 'review_reasons' => 'array', 'pricing_snapshot' => 'array', 'contact_snapshot' => 'array', 'expires_at' => 'immutable_datetime', 'sealed_at' => 'immutable_datetime', 'number' => 'integer', 'total_minor' => 'integer', 'subtotal_minor' => 'integer', 'tax_minor' => 'integer'];
     }
 
     protected static function booted(): void

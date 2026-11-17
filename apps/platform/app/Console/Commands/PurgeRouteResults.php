@@ -29,7 +29,7 @@ final class PurgeRouteResults extends Command
                             $quote->draft_input = app(WriteQuoteRevision::class)->snapshotInput($quote->draft_input);
                             $quote->save();
                         }
-                        $route->fill(['customer_metres' => null, 'depot_metres' => null, 'return_metres' => null, 'duration_seconds' => null, 'tolls_minor' => null, 'retain_until' => null])->save();
+                        $route->fill(['customer_metres' => null, 'depot_metres' => null, 'return_metres' => null, 'duration_seconds' => null, 'depot_duration_seconds' => null, 'return_duration_seconds' => null, 'tolls_minor' => null, 'retain_until' => null])->save();
                     });
                 }
             } finally {

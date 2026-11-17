@@ -1,5 +1,5 @@
 import { Head, Link, useForm, usePage } from "@inertiajs/react";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Button, Card } from "@logistics/design-system";
 import type { SharedProps } from "@logistics/types";
 import CompanyLayout from "../../layouts/CompanyLayout";
@@ -49,6 +49,28 @@ function Editor({ module, record, companyTimezone }: Props) {
                 .slice(0, 16);
     const form = useForm(initial);
     useUnsavedChanges(form.isDirty);
+    const capacitySignature = JSON.stringify(
+        [
+            "vehicle_type_key",
+            "registration_number",
+            "usable_volume_m3",
+            "payload_kg",
+            "cargo_length_m",
+            "cargo_width_m",
+            "cargo_height_m",
+            "max_item_length_m",
+            "max_item_width_m",
+            "max_item_height_m",
+            "capacity_margin_basis_points",
+        ].map((key) => form.data[key]),
+    );
+    const lastCapacity = useRef(capacitySignature);
+    useEffect(() => {
+        if (module === "fleet" && lastCapacity.current !== capacitySignature) {
+            lastCapacity.current = capacitySignature;
+            form.setData("capacity_verified", false);
+        }
+    }, [module, capacitySignature]);
     const url =
         module === "settings"
             ? base + "/settings"

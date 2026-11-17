@@ -132,6 +132,15 @@
         },
         "waiting_minutes": {
           "type": "integer"
+        },
+        "declared_goods_value_minor": {
+          "type": ["integer", "null"],
+          "minimum": 0,
+          "maximum": 100000000000
+        },
+        "declared_goods_currency": {
+          "type": ["string", "null"],
+          "enum": ["ZAR", "USD", "EUR", "GBP", null]
         }
       },
       "required": [
@@ -508,6 +517,9 @@
         },
         "preferred_time": {
           "type": ["string", "null"]
+        },
+        "terms_version": {
+          "type": "string"
         }
       },
       "required": [

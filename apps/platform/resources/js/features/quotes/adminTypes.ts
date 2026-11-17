@@ -14,6 +14,18 @@ export interface InternalRevision extends QuoteRevisionData {
     }[];
     pricing_snapshot: {
         version?: number;
+        engine_version?: string;
+        calculation_failures?: { vehicle_type_key?: string; message: string }[];
+        source_price_book?: { price_book_public_id?: string; version?: number };
+        calculation_id?: string;
+        calculated_at?: string;
+        tenant_public_id?: string;
+        service_public_id?: string;
+        price_book_public_id?: string;
+        screened_vehicle_type?: string;
+        internal_costs?: InternalCostEstimate;
+        route_snapshot?: Record<string, string | number | null>;
+        quantity_status?: string;
         distance_basis?: string;
         manual_override?: boolean;
         reason?: string;
@@ -44,7 +56,67 @@ export interface AdminQuote extends QuotationData {
         } | null;
     }>;
 }
+export interface InternalCostEstimate {
+    status: string;
+    reason?: string;
+    lines?: { code: string; amount_minor: number }[];
+    direct_cost_minor?: number;
+    overhead_minor?: number;
+    total_cost_minor?: number;
+    revenue_ex_tax_minor?: number;
+    contribution_minor?: number;
+    margin_bps?: number | null;
+    minimum_margin_bps?: number;
+    target_margin_bps?: number;
+    below_minimum?: boolean;
+    below_target?: boolean;
+    job_hours?: string;
+    distance_km?: string;
+}
+export interface CommercialTerms {
+    status: "draft" | "reviewed";
+    insurance_status: "draft" | "reviewed";
+    declared_value_required: boolean;
+    insurance_information: string;
+    special_handling: string;
+    customer_responsibilities: string;
+    access_parking: string;
+    cancellation: string;
+    rescheduling: string;
+    damage_reporting: string;
+    additional_charges: string;
+}
+export interface CommercialPricing {
+    included_km: number;
+    minimum_chargeable_km: number;
+    minimum_labour_hours: number;
+    standard_labour_hours: number;
+    labour_model: "combined" | "separate";
+    labour_distance_basis: "customer" | "operational";
+    bill_waiting_in_labour: boolean;
+    toll_policy: "included" | "actual" | "review";
+    tax_reviewed: boolean;
+    tax_mode: "not_registered" | "registered" | "exempt";
+    tax_registration: string;
+    tax_basis_points: number;
+    costs_reviewed: boolean;
+    cost_distance_basis: "customer" | "operational";
+    target_margin_bps: number;
+    minimum_margin_bps: number;
+    override_roles: ("owner" | "admin")[];
+    fuel_rate_micros: number;
+    vehicle_rate_micros: number;
+    driver_rate_micros: number;
+    mover_rate_micros: number;
+    driver_overtime_rate_micros: number;
+    mover_overtime_rate_micros: number;
+    fixed_cost_minor: number;
+    overhead_minor: number;
+    estimated_tolls_minor: number;
+}
 export interface Policy {
+    commercial_terms?: CommercialTerms | null;
+    terms_version?: string | null;
     automatic_estimates: boolean;
     allow_catalogue_estimates: boolean;
     allow_customer_measurements: boolean;
@@ -85,7 +157,8 @@ export interface PriceRule {
     vehicle_type_key: string | null;
 }
 export interface BookConfiguration {
-    schema_version: 1;
+    schema_version: 1 | 2;
+    commercial?: CommercialPricing;
     included_metrics: string[];
     crew_size: number;
     loading_minutes_per_complexity: number;

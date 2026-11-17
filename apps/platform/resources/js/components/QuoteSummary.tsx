@@ -237,6 +237,19 @@ export default function QuoteSummary({ quote }: { quote: QuotationData }) {
                         · {revision.move_details.waiting_minutes} expected
                         waiting minutes.
                     </li>
+                    {revision.move_details.declared_goods_value_minor !=
+                        null && (
+                        <li>
+                            Declared goods value:{" "}
+                            {money(
+                                revision.move_details
+                                    .declared_goods_value_minor,
+                                revision.move_details.declared_goods_currency ??
+                                    revision.currency,
+                            )}
+                            . This does not confirm insurance coverage.
+                        </li>
+                    )}
                     {revision.move_details.parking_limited && (
                         <li>Limited parking.</li>
                     )}
@@ -266,6 +279,11 @@ export default function QuoteSummary({ quote }: { quote: QuotationData }) {
             )}
             <Card>
                 <h3 className="text-lg font-bold">Terms and exclusions</h3>
+                {revision.terms_version && (
+                    <p className="mt-2 text-xs text-slate-400">
+                        Terms version: {revision.terms_version}
+                    </p>
+                )}
                 <p className="mt-3 whitespace-pre-wrap">
                     {revision.terms ||
                         "Terms will be supplied with the approved quotation."}

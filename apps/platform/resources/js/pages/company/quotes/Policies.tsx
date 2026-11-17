@@ -1,6 +1,9 @@
 import { Head, useForm, usePage } from "@inertiajs/react";
 import type { SharedProps } from "@logistics/types";
 import { Button, Card } from "@logistics/design-system";
+import CommercialTermsFields, {
+    blankCommercialTerms,
+} from "../../../components/CommercialTermsFields";
 import CompanyLayout from "../../../layouts/CompanyLayout";
 import type { Policy } from "../../../features/quotes/adminTypes";
 function PolicyForm({
@@ -12,6 +15,10 @@ function PolicyForm({
 }) {
     const policy = service.policy;
     const form = useForm({
+        commercial_terms: {
+            ...blankCommercialTerms,
+            ...policy.commercial_terms,
+        },
         automatic_estimates: policy.automatic_estimates,
         allow_catalogue_estimates: policy.allow_catalogue_estimates,
         allow_customer_measurements: policy.allow_customer_measurements,
@@ -77,6 +84,17 @@ function PolicyForm({
                     packing. Unknown dimensions, uncertain weight, special
                     handling and near-capacity loads still require review.
                 </p>
+                <CommercialTermsFields
+                    value={form.data.commercial_terms}
+                    onChange={(value) =>
+                        form.setData("commercial_terms", value)
+                    }
+                />
+                {policy.terms_version && (
+                    <p className="text-xs text-slate-400">
+                        Saved terms version: {policy.terms_version}
+                    </p>
+                )}
                 <div className="grid gap-4 sm:grid-cols-2">
                     <label>
                         Outside service areas

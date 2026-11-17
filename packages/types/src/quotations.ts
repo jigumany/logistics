@@ -53,6 +53,8 @@ export interface MoveDetails {
   special_equipment: boolean;
   packing: boolean;
   waiting_minutes: number;
+  declared_goods_value_minor?: number | null;
+  declared_goods_currency?: "ZAR" | "USD" | "EUR" | "GBP" | null;
 }
 /**
  * This interface was referenced by `QuotationContract`'s JSON-Schema
@@ -184,6 +186,7 @@ export interface QuoteRevisionData {
   service_name: string;
   move_details: MoveDetails;
   preferred_time: string | null;
+  terms_version?: string;
   [k: string]: unknown;
 }
 /**
