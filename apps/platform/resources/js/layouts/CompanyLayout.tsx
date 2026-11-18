@@ -53,6 +53,29 @@ export default function CompanyLayout({ children }: PropsWithChildren) {
                           },
                       ]
                     : []),
+                ...(["owner", "admin", "dispatcher", "driver"].includes(
+                    auth.role ?? "",
+                )
+                    ? [
+                          {
+                              path: "dispatch",
+                              label:
+                                  auth.role === "driver"
+                                      ? "My driving jobs"
+                                      : "Dispatch board",
+                              icon: "truck" as const,
+                          },
+                      ]
+                    : []),
+                ...(manager
+                    ? [
+                          {
+                              path: "finance",
+                              label: "Payments and invoices",
+                              icon: "file" as const,
+                          },
+                      ]
+                    : []),
                 { path: "fleet", label: "Fleet", icon: "truck" },
                 { path: "zones", label: "Service areas", icon: "map" },
                 { path: "depots", label: "Depots", icon: "depot" },
@@ -103,6 +126,14 @@ export default function CompanyLayout({ children }: PropsWithChildren) {
             ],
         },
     ];
+    if (auth.role === "driver") {
+        groups.splice(0, groups.length, {
+            label: "Driver workspace",
+            items: [
+                { path: "dispatch", label: "My driving jobs", icon: "truck" },
+            ],
+        });
+    }
     const active = (path: string) =>
         path === "calendar/weekly"
             ? page.url.split("?")[0].startsWith(base + "/calendar/")

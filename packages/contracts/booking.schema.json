@@ -163,6 +163,29 @@
             "required": ["to_status", "created_at"],
             "additionalProperties": false
           }
+        },
+        "payments": {
+          "$ref": "#/definitions/PaymentSummaryData"
+        },
+        "dispatch": {
+          "anyOf": [
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "status": {
+                  "type": "string"
+                },
+                "completed_at": {
+                  "type": ["string", "null"]
+                }
+              },
+              "required": ["status", "completed_at"]
+            },
+            {
+              "type": "null"
+            }
+          ]
         }
       },
       "required": [
@@ -255,6 +278,97 @@
       },
       "required": ["slots", "reasons", "timezone", "hold_minutes", "advisory"],
       "additionalProperties": false
+    },
+    "PaymentSummaryData": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "total_minor": {
+          "type": "integer"
+        },
+        "paid_minor": {
+          "type": "integer"
+        },
+        "balance_minor": {
+          "type": "integer"
+        },
+        "currency": {
+          "type": "string"
+        },
+        "checkout": {
+          "anyOf": [
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "public_id": {
+                  "type": "string"
+                },
+                "status": {
+                  "type": "string"
+                },
+                "purpose": {
+                  "type": "string"
+                },
+                "amount_minor": {
+                  "type": "integer"
+                },
+                "redirect_url": {
+                  "type": ["string", "null"]
+                },
+                "idempotency_key": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "public_id",
+                "status",
+                "purpose",
+                "amount_minor",
+                "redirect_url",
+                "idempotency_key"
+              ]
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "invoice": {
+          "anyOf": [
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "public_id": {
+                  "type": "string"
+                },
+                "number": {
+                  "type": "string"
+                },
+                "due_date": {
+                  "type": "string"
+                },
+                "total_minor": {
+                  "type": "integer"
+                }
+              },
+              "required": ["public_id", "number", "due_date", "total_minor"]
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "total_minor",
+        "paid_minor",
+        "balance_minor",
+        "currency",
+        "checkout",
+        "invoice"
+      ]
     }
   }
 }

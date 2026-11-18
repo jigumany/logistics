@@ -116,6 +116,11 @@ it('proves booking exclusivity across simultaneous application instances and dir
         $direct = $race('raw', array_map(fn ($n) => ['quote' => $free[$n], 'start' => CarbonImmutable::parse($fixture['start'])->addDay()->toIso8601String(), 'key' => (string) Str::uuid(), 'preferred' => $fixture['resources']], [4, 5]));
         expect(array_count_values(array_column($direct, 'outcome')))->toEqual(['ok' => 1, 'conflict' => 1])->and(collect($direct)->firstWhere('outcome', 'conflict')['codes'])->toBe(['23P01']);
         $noOverlap();
+        $dispatched = $race('dispatch', array_fill(0, 4, ['booking' => $booking['public_id'], 'owner_id' => $fixture['owner_id']]));
+        expect(array_unique(array_column($dispatched, 'public_id')))->toHaveCount(1)->and($connection->table('dispatch_jobs')->count())->toBe(1);
+        $invoiced = $race('invoice', array_fill(0, 4, ['booking' => $booking['public_id'], 'owner_id' => $fixture['owner_id']]));
+        expect(array_unique(array_column($invoiced, 'public_id')))->toHaveCount(1)->and($connection->table('invoices')->count())->toBe(1);
+        $noOverlap();
     } finally {
         DB::disconnect('booking_race');
         $admin->exec("SELECT pg_advisory_unlock(hashtext('logistics_booking_race_test'))");

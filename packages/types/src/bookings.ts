@@ -62,6 +62,35 @@ export interface BookingData {
     to_status: string;
     created_at: string;
   }[];
+  payments?: PaymentSummaryData;
+  dispatch?: {
+    status: string;
+    completed_at: string | null;
+  } | null;
+}
+/**
+ * This interface was referenced by `BookingContract`'s JSON-Schema
+ * via the `definition` "PaymentSummaryData".
+ */
+export interface PaymentSummaryData {
+  total_minor: number;
+  paid_minor: number;
+  balance_minor: number;
+  currency: string;
+  checkout: {
+    public_id: string;
+    status: string;
+    purpose: string;
+    amount_minor: number;
+    redirect_url: string | null;
+    idempotency_key: string;
+  } | null;
+  invoice: {
+    public_id: string;
+    number: string;
+    due_date: string;
+    total_minor: number;
+  } | null;
 }
 /**
  * This interface was referenced by `BookingContract`'s JSON-Schema

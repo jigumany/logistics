@@ -5,3 +5,6 @@ parameters:
     paths:
         - app
     tmpDir: storage/framework/cache/phpstan
+
+    parallel:
+        maximumNumberOfProcesses: 2

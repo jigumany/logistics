@@ -9,8 +9,10 @@ use App\Domain\Bookings\ConfirmBooking;
 use App\Domain\Bookings\CreateBookingHold;
 use App\Domain\Bookings\RescheduleBooking;
 use App\Domain\Bookings\ResourceAllocation;
+use App\Domain\Dispatch\DispatchBooking;
 use App\Domain\Fleet\SaveVehicle;
 use App\Domain\Fleet\Vehicle;
+use App\Domain\Invoicing\IssueInvoice;
 use App\Domain\Quotes\AcceptQuote;
 use App\Domain\Quotes\CalculateQuote;
 use App\Domain\Quotes\CreateQuoteDraft;
@@ -18,6 +20,7 @@ use App\Domain\Quotes\Quote;
 use App\Domain\Quotes\SubmitQuote;
 use App\Domain\Resources\Resource;
 use App\Domain\Resources\SaveStaffMember;
+use App\Domain\Tenancy\CompanySettings;
 use App\Domain\Tenancy\Tenant;
 use App\Domain\Tenancy\TenantContext;
 use Carbon\CarbonImmutable;
@@ -87,8 +90,13 @@ if (isset($args['barrier'])) {
     }
 }
 try {
+    if ($mode === 'invoice') {
+        CompanySettings::query()->update(['registered_name' => 'Race Test Movers Ltd', 'billing_address' => 'Test Road, Cape Town', 'contact_email' => 'race@example.test', 'vat_number' => 'TEST-VAT']);
+    }
     $result = match ($mode) {
         'hold' => app(CreateBookingHold::class)->execute(Quote::where('public_id', $args['quote'])->firstOrFail(), CarbonImmutable::parse($args['start']), $args['key'], isset($args['booking']) ? Booking::where('public_id', $args['booking'])->firstOrFail() : null, $args['preferred'] ?? [], isset($args['preferred']) ? $args['owner_id'] : null),
+        'dispatch' => app(DispatchBooking::class)->execute(Booking::where('public_id', $args['booking'])->firstOrFail(), $args['owner_id']),
+        'invoice' => app(IssueInvoice::class)->execute(Booking::where('public_id', $args['booking'])->firstOrFail(), $args['owner_id'], now()->addDays(7)->toDateString()),
         'confirm' => app(ConfirmBooking::class)->execute(BookingHold::where('public_id', $args['hold'])->firstOrFail(), $args['key']),
         'reschedule' => app(RescheduleBooking::class)->execute(Booking::where('public_id', $args['booking'])->firstOrFail(), BookingHold::where('public_id', $args['hold'])->firstOrFail(), $args['key'], 'Concurrent replacement test.', $args['version']),
         'raw' => DB::transaction(function () use ($args) {
@@ -101,7 +109,7 @@ try {
             }
 
             return $h;
-        }),
+        }, 5),
         default => throw new RuntimeException('Unknown race command'),
     };
     echo 'RESULT '.json_encode(['outcome' => 'ok', 'public_id' => $result->public_id, 'status' => $result->status, 'version' => $result->lock_version, 'quote' => $args['quote'] ?? null], JSON_THROW_ON_ERROR)."\n";
@@ -109,7 +117,8 @@ try {
     echo 'RESULT '.json_encode(['outcome' => 'conflict', 'codes' => array_column($e->reasons, 'code')], JSON_THROW_ON_ERROR)."\n";
 } catch (QueryException $e) {
     if (($e->errorInfo[0] ?? '') !== '23P01') {
-        throw $e;
+        fwrite(STDERR, get_class($e).': '.$e->getMessage().PHP_EOL);
+        exit(1);
     }echo 'RESULT '.json_encode(['outcome' => 'conflict', 'codes' => ['23P01']], JSON_THROW_ON_ERROR)."\n";
 } catch (Throwable $error) {
     fwrite(STDERR, get_class($error).': '.$error->getMessage()."\n");

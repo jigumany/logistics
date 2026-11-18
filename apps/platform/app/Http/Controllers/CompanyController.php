@@ -14,8 +14,12 @@ use Inertia\Response;
 
 final class CompanyController extends Controller
 {
-    public function show(Request $request): Response
+    public function show(Request $request): Response|RedirectResponse
     {
+        if ($request->attributes->get('membership')?->role->value === 'driver') {
+            return redirect('/c/'.$request->route('company').'/dispatch');
+        }
+
         return Inertia::render('company/Dashboard', ['readiness' => $request->attributes->get('membership')?->role->managesCompany() ? TenantService::where('active', true)->where('enabled', true)->orderBy('id')->get()->map(fn ($service) => app(QuotationReadiness::class)->evaluate($service))->all() : [], 'settings' => CompanySettings::firstOrFail(), 'services' => TenantService::orderBy('code')->get()]);
     }
 

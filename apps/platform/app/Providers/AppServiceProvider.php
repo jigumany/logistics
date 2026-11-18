@@ -6,9 +6,12 @@ use App\Domain\Availability\CalendarWindows;
 use App\Domain\Availability\OperatingCalendar;
 use App\Domain\Bookings\BookingPaymentVerifier;
 use App\Domain\Geography\CoverageLookup;
+use App\Domain\Invoicing\InvoiceDocumentRenderer;
 use App\Domain\Notifications\DomainEvent;
 use App\Domain\Notifications\QueueBookingNotice;
 use App\Domain\Notifications\QueueQuoteArtifacts;
+use App\Domain\Payments\CheckoutGateway;
+use App\Domain\Payments\RecordedBookingPayments;
 use App\Domain\Quotes\QuotationDocumentRenderer;
 use App\Domain\Routing\AddressProvider;
 use App\Domain\Routing\RoutingProvider;
@@ -16,7 +19,8 @@ use App\Domain\Tenancy\TenantContext;
 use App\Infrastructure\Maps\GoogleAddressProvider;
 use App\Infrastructure\Maps\GoogleRoutingProvider;
 use App\Infrastructure\Maps\PostgisCoverageLookup;
-use App\Infrastructure\Payments\UnconfiguredBookingPayments;
+use App\Infrastructure\Payments\YocoCheckoutGateway;
+use App\Infrastructure\Storage\DompdfInvoiceRenderer;
 use App\Infrastructure\Storage\DompdfQuoteRenderer;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Database\Eloquent\Model;
@@ -31,7 +35,9 @@ final class AppServiceProvider extends ServiceProvider
 {
     public function register(): void
     {
-        $this->app->bind(BookingPaymentVerifier::class, UnconfiguredBookingPayments::class);
+        $this->app->bind(BookingPaymentVerifier::class, RecordedBookingPayments::class);
+        $this->app->bind(CheckoutGateway::class, YocoCheckoutGateway::class);
+        $this->app->bind(InvoiceDocumentRenderer::class, DompdfInvoiceRenderer::class);
         $this->app->bind(QuotationDocumentRenderer::class, DompdfQuoteRenderer::class);
         $this->app->bind(RoutingProvider::class, GoogleRoutingProvider::class);
         $this->app->bind(AddressProvider::class, GoogleAddressProvider::class);

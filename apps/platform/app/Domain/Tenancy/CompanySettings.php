@@ -6,7 +6,12 @@ use App\Domain\Services\TenantService;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-/** @property-read TenantService|null $defaultService */
+/**
+ * @property-read TenantService|null $defaultService
+ * @property string|null $registered_name
+ * @property string|null $billing_address
+ * @property string|null $vat_number
+ */
 class CompanySettings extends Model
 {
     use BelongsToTenant;

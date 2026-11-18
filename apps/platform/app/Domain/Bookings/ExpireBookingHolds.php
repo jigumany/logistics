@@ -23,6 +23,10 @@ final class ExpireBookingHolds
             if ($hold->booking_id && $hold->purpose === 'initial') {
                 $booking = Booking::whereKey($hold->booking_id)->lockForUpdate()->firstOrFail();
                 if (in_array($booking->status, ['pending_payment', 'pending_confirmation'], true)) {
+                    if ($booking->financial_state === 'verified') {
+                        $booking->financial_state = 'manual_resolution';
+                        $booking->refund_state = 'review_required';
+                    }
                     app(BookingLifecycle::class)->record($booking, 'expired', 'Temporary resource hold expired before confirmation.');
                     app(BookingLifecycle::class)->event('booking.hold_expired', $booking);
                 }
@@ -47,6 +51,10 @@ final class ExpireBookingHolds
         if ($hold->purpose === 'initial' && $hold->booking_id) {
             $booking = Booking::whereKey($hold->booking_id)->firstOrFail();
             if (in_array($booking->status, ['pending_payment', 'pending_confirmation'], true)) {
+                if ($booking->financial_state === 'verified') {
+                    $booking->financial_state = 'manual_resolution';
+                    $booking->refund_state = 'review_required';
+                }
                 app(BookingLifecycle::class)->record($booking, 'expired', 'Resource hold released before confirmation.');
             }
         }

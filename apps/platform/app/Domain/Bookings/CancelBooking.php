@@ -2,6 +2,8 @@
 
 namespace App\Domain\Bookings;
 
+use App\Domain\Dispatch\ProtectDispatchedBooking;
+
 final class CancelBooking
 {
     public function execute(Booking $booking, string $key, string $reason, int $version, ?int $actorId = null): Booking
@@ -17,6 +19,7 @@ final class CancelBooking
                 return Booking::whereKey($receipt->booking_id)->firstOrFail();
             }
             $booking = Booking::whereKey($booking->id)->lockForUpdate()->firstOrFail();
+            app(ProtectDispatchedBooking::class)->assertMutable($booking);
             if ($booking->lock_version !== $version || ! in_array($booking->status, ['confirmed', 'pending_confirmation', 'pending_payment'], true)) {
                 throw BookingConflict::because('cancellation_conflict', 'This booking changed or is already closed. Refresh before cancelling.');
             }
@@ -35,7 +38,7 @@ final class CancelBooking
             }
             app(BookingLifecycle::class)->record($booking, 'cancelled', $reason, $actorId);
             app(BookingCommandReceipt::class)->save($booking, $key, 'cancel', $hash, $reason, [], $actorId);
-            app(BookingLifecycle::class)->event('booking.cancelled',$booking);
+            app(BookingLifecycle::class)->event('booking.cancelled', $booking);
 
             return $booking;
         });

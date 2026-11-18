@@ -4,6 +4,7 @@ namespace App\Domain\Bookings;
 
 use App\Domain\Availability\AvailabilityPlanner;
 use App\Domain\Availability\BookingQuoteScope;
+use App\Domain\Dispatch\ProtectDispatchedBooking;
 use App\Domain\Quotes\Quote;
 use App\Domain\Resources\Resource;
 use App\Domain\Services\TenantService;
@@ -24,6 +25,7 @@ final class RescheduleBooking
                 return Booking::whereKey($receipt->booking_id)->firstOrFail();
             }
             $booking = Booking::whereKey($booking->id)->lockForUpdate()->firstOrFail();
+            app(ProtectDispatchedBooking::class)->assertMutable($booking);
             $hold = BookingHold::whereKey($hold->id)->lockForUpdate()->firstOrFail();
             if ($booking->status !== 'confirmed' || $booking->lock_version !== $version || $hold->booking_id !== $booking->id || $hold->purpose !== 'reschedule' || $hold->status !== 'active' || $hold->expires_at->isPast()) {
                 throw BookingConflict::because('reschedule_conflict', 'The booking or replacement hold changed. The original booking has been preserved.');

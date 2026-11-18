@@ -1,0 +1,235 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "OperationsContract",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "job": {
+      "$ref": "#/definitions/DispatchJobData"
+    }
+  },
+  "definitions": {
+    "DispatchJobData": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "public_id": {
+          "type": "string"
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "assigned",
+            "accepted",
+            "en_route",
+            "arrived",
+            "loading",
+            "in_transit",
+            "delivered",
+            "completed",
+            "recalled"
+          ]
+        },
+        "lock_version": {
+          "type": "integer"
+        },
+        "next_status": {
+          "type": ["string", "null"]
+        },
+        "completed_at": {
+          "type": ["string", "null"]
+        },
+        "resource_snapshot": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "resource_public_id": {
+                "type": "string"
+              },
+              "kind": {
+                "type": "string"
+              },
+              "label": {
+                "type": "string"
+              },
+              "staff_public_id": {
+                "type": ["string", "null"]
+              }
+            },
+            "required": [
+              "resource_public_id",
+              "kind",
+              "label",
+              "staff_public_id"
+            ]
+          }
+        },
+        "work_snapshot": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "reference": {
+              "type": "string"
+            },
+            "starts_at": {
+              "type": "string"
+            },
+            "ends_at": {
+              "type": "string"
+            },
+            "contact": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "name": {
+                  "type": "string"
+                },
+                "phone": {
+                  "type": "string"
+                }
+              },
+              "required": []
+            },
+            "stops": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "position": {
+                    "type": "integer"
+                  },
+                  "kind": {
+                    "type": "string"
+                  },
+                  "address_line": {
+                    "type": "string"
+                  },
+                  "city": {
+                    "type": "string"
+                  },
+                  "instructions": {
+                    "type": ["string", "null"]
+                  }
+                },
+                "required": ["position", "kind", "address_line", "city"]
+              }
+            },
+            "inventory": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  },
+                  "quantity": {
+                    "type": "integer"
+                  },
+                  "weight_kg": {
+                    "type": ["string", "null"]
+                  },
+                  "instructions": {
+                    "type": ["string", "null"]
+                  },
+                  "fragile": {
+                    "type": "boolean"
+                  }
+                },
+                "required": ["name", "quantity"]
+              }
+            },
+            "access": {
+              "type": "object",
+              "additionalProperties": true
+            }
+          },
+          "required": [
+            "reference",
+            "starts_at",
+            "ends_at",
+            "contact",
+            "stops",
+            "inventory",
+            "access"
+          ]
+        },
+        "proof": {
+          "anyOf": [
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "public_id": {
+                  "type": "string"
+                },
+                "recipient_name": {
+                  "type": "string"
+                },
+                "recipient_acknowledged": {
+                  "type": "boolean"
+                },
+                "notes": {
+                  "type": ["string", "null"]
+                },
+                "captured_at": {
+                  "type": "string"
+                },
+                "sha256": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "public_id",
+                "recipient_name",
+                "recipient_acknowledged",
+                "notes",
+                "captured_at",
+                "sha256"
+              ]
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "events": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "from_status": {
+                "type": ["string", "null"]
+              },
+              "to_status": {
+                "type": "string"
+              },
+              "note": {
+                "type": ["string", "null"]
+              },
+              "created_at": {
+                "type": "string"
+              }
+            },
+            "required": ["to_status", "created_at"]
+          }
+        }
+      },
+      "required": [
+        "public_id",
+        "status",
+        "lock_version",
+        "next_status",
+        "completed_at",
+        "resource_snapshot",
+        "work_snapshot",
+        "proof",
+        "events"
+      ]
+    }
+  }
+}

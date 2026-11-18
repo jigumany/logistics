@@ -1,0 +1,1 @@
+<h1>Join {{ $business }}</h1><p>You have been invited to the driver workspace. This link can be used once and expires after 24 hours.</p><p><a href="{{ $invitationUrl }}">Accept driver invitation</a></p><p>If you already have an account, sign in with your existing password. If you did not expect this invitation, ignore it.</p>

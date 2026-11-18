@@ -26,7 +26,7 @@ const quoteTypes = await compile(quotations, "QuotationContract", {
 await writeFile(
   new URL("../packages/types/src/index.ts", import.meta.url),
   generated +
-    '\nexport type * from "./quotations";\nexport type * from "./bookings";\n',
+    '\nexport type * from "./quotations";\nexport type * from "./bookings";\nexport type * from "./operations";\n',
 );
 await writeFile(
   new URL("../packages/types/src/quotations.ts", import.meta.url),
@@ -46,5 +46,21 @@ await writeFile(
     unreachableDefinitions: true,
     bannerComment:
       "/* Generated from packages/contracts/booking.schema.json. */",
+  }),
+);
+
+const operations = JSON.parse(
+  await readFile(
+    new URL("../packages/contracts/operations.schema.json", import.meta.url),
+    "utf8",
+  ),
+);
+await writeFile(
+  new URL("../packages/types/src/operations.ts", import.meta.url),
+  await compile(operations, "OperationsContract", {
+    ignoreMinAndMaxItems: true,
+    unreachableDefinitions: true,
+    bannerComment:
+      "/* Generated from packages/contracts/operations.schema.json. */",
   }),
 );

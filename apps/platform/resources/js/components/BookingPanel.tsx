@@ -1,3 +1,5 @@
+import BookingPayments from "./BookingPayments";
+import type { PaymentSummary } from "../features/dispatch/types";
 import { useEffect, useRef, useState } from "react";
 import type { AvailabilitySlot, AvailabilityResult } from "@logistics/types";
 import { Button, Card } from "@logistics/design-system";
@@ -46,7 +48,10 @@ export default function BookingPanel({
         return () => clearInterval(timer);
     }, []);
     const hold = state.hold;
-    const booking = state.booking;
+    const booking = state.booking as typeof state.booking & {
+        payments?: PaymentSummary;
+        dispatch?: { status: string; completed_at: string | null } | null;
+    };
     const operator = !!operationBase;
     const remaining = hold
         ? Math.max(
@@ -247,13 +252,13 @@ export default function BookingPanel({
                             </div>
                             <div>
                                 <dt className="text-xs text-slate-500">
-                                    Dispatch preparation
+                                    Dispatch status
                                 </dt>
                                 <dd className="mt-1 capitalize">
-                                    {booking.dispatch_state.replaceAll(
-                                        "_",
-                                        " ",
-                                    )}
+                                    {(
+                                        booking.dispatch?.status ??
+                                        booking.dispatch_state
+                                    ).replaceAll("_", " ")}
                                 </dd>
                             </div>
                         </dl>
@@ -652,6 +657,32 @@ export default function BookingPanel({
                         replacement does not cancel your existing booking.
                     </p>
                 </div>
+            )}
+            {booking?.dispatch && (
+                <section className="mt-6 rounded-2xl border border-teal-200 bg-teal-50 p-6">
+                    <h2 className="text-lg font-bold">Your move</h2>
+                    <p className="mt-2 capitalize">
+                        {booking.dispatch.status.replaceAll("_", " ")}
+                    </p>
+                    {booking.dispatch.completed_at && (
+                        <p className="mt-2 text-sm">
+                            Completed{" "}
+                            {new Date(
+                                booking.dispatch.completed_at,
+                            ).toLocaleString("en-ZA", {
+                                timeZone: state.timezone,
+                            })}
+                        </p>
+                    )}
+                </section>
+            )}
+            {booking?.payments && (
+                <BookingPayments
+                    summary={booking.payments}
+                    reservationActive={activeHold}
+                    status={booking.status}
+                    links={state.links}
+                />
             )}
         </div>
     );

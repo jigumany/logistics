@@ -75,3 +75,5 @@ Route::middleware('auth')->group(function (): void {
 require __DIR__.'/quotes.php';
 
 require __DIR__.'/bookings.php';
+
+require __DIR__.'/dispatch.php';

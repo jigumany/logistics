@@ -17,6 +17,9 @@ final class GuestBookingLinks
             $links[$operation] = URL::temporarySignedRoute('booking.guest.operation', $expires, [...$parameters, 'operation' => $operation]);
         }
 
+        $links['checkout'] = URL::temporarySignedRoute('booking.payment.checkout', $expires, $parameters);
+        $links['invoice'] = URL::temporarySignedRoute('booking.payment.invoice', $expires, $parameters);
+
         return $links;
     }
 }

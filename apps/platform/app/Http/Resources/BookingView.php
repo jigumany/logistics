@@ -9,6 +9,7 @@ use App\Domain\Bookings\BookingHoldResource;
 use App\Domain\Bookings\BookingStatusHistory;
 use App\Domain\Bookings\GuestBookingLinks;
 use App\Domain\Bookings\ResourceAllocation;
+use App\Domain\Dispatch\DispatchJob;
 use App\Domain\Quotes\Quote;
 use App\Domain\Resources\Resource;
 use App\Domain\Tenancy\CompanySettings;
@@ -38,8 +39,10 @@ final class BookingView
     {
         $data = $booking->only('public_id', 'reference', 'status', 'financial_state', 'required_payment_minor', 'currency', 'dispatch_state', 'refund_state', 'arrival_starts_at', 'arrival_ends_at', 'service_starts_at', 'service_ends_at', 'lock_version', 'requirements', 'duration_snapshot');
         $data['confirmation_instructions'] = match ($booking->status) {
-            'confirmed' => 'Your booking has been confirmed by the reservation system. Dispatch instructions will follow separately.','pending_payment' => 'Payment verification is not integrated yet. This booking is not confirmed; the temporary hold will expire unless its requirements are satisfied.','pending_confirmation' => 'An authorised operations team member must confirm this booking before the hold expires.','expired' => 'The temporary hold expired and resources have been released. Contact operations for a fresh availability review.','cancelled' => 'This booking has been cancelled.',default => 'Please contact operations.'
+            'confirmed' => 'Your booking has been confirmed by the reservation system. Dispatch instructions will follow separately.','pending_payment' => 'Complete payment through Yoco before your temporary hold expires. Only verified payment and any required operator approval can confirm this booking.','pending_confirmation' => 'An authorised operations team member must confirm this booking before the hold expires.','expired' => 'The temporary hold expired and resources have been released. Contact operations for a fresh availability review.','cancelled' => 'This booking has been cancelled.',default => 'Please contact operations.'
         };
+        $data['dispatch'] = DispatchJob::where('booking_id', $booking->id)->where('status', '<>', 'recalled')->orderByDesc('id')->first()?->only(['status', 'completed_at']);
+        $data['payments'] = app(PaymentSummary::class)->make($booking);
         $data['history'] = BookingStatusHistory::where('booking_id', $booking->id)->orderByDesc('id')->limit(100)->get()->map(fn ($h) => $internal ? $h->only('from_status', 'to_status', 'reason', 'created_at') : $h->only('to_status', 'created_at'))->all();
         if ($internal) {
             $data['allocation_starts_at'] = $booking->allocation_starts_at;

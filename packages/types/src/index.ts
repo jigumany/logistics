@@ -86,3 +86,4 @@ export interface OperationalResource {
 
 export type * from "./quotations";
 export type * from "./bookings";
+export type * from "./operations";
