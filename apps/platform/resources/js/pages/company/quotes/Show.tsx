@@ -5,6 +5,7 @@ import { Button, Card } from "@logistics/design-system";
 import PricingExplanation from "../../../components/PricingExplanation";
 import CompanyLayout from "../../../layouts/CompanyLayout";
 import QuoteSummary from "../../../components/QuoteSummary";
+import InventoryVerificationPanel from "../../../components/InventoryVerificationPanel";
 import Pagination, { type Paged } from "../../../components/Pagination";
 import type {
     AdminQuote,
@@ -301,8 +302,10 @@ export default function Show({
     quote,
     history,
     revisions,
+    vehicleTypes,
 }: {
     quote: AdminQuote;
+    vehicleTypes: { key: string; name: string }[];
     history: Paged<{
         from_status: string | null;
         to_status: string;
@@ -368,6 +371,45 @@ export default function Show({
                             </a>
                         </Card>
                     )}
+                    {canManage &&
+                        quote.status === "accepted" &&
+                        quote.revision && (
+                            <div className="mb-6">
+                                <InventoryVerificationPanel
+                                    key={
+                                        quote.inventory_verification
+                                            ?.revision_public_id ??
+                                        quote.revision.public_id
+                                    }
+                                    inventory={quote.revision.inventory}
+                                    verification={quote.inventory_verification}
+                                    vehicleTypes={vehicleTypes}
+                                    allowedVehicleTypeKeys={
+                                        quote.revision.pricing_snapshot
+                                            .screened_vehicle_type
+                                            ? [
+                                                  quote.revision
+                                                      .pricing_snapshot
+                                                      .screened_vehicle_type,
+                                              ]
+                                            : quote.revision.suitability
+                                                  .filter(
+                                                      (assessment) =>
+                                                          assessment.technically_fits,
+                                                  )
+                                                  .map(
+                                                      (assessment) =>
+                                                          assessment.vehicle_type_key,
+                                                  )
+                                    }
+                                    pricedCrewSize={
+                                        quote.revision.pricing_snapshot
+                                            .configuration?.crew_size ?? null
+                                    }
+                                    actionUrl={base + "/inventory-verification"}
+                                />
+                            </div>
+                        )}
                     <QuoteSummary quote={quote} />
                     <Card className="mt-6">
                         <h2 className="text-xl font-bold">

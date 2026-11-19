@@ -3,11 +3,13 @@
 namespace App\Http\Controllers;
 
 use App\Domain\Customers\Customer;
+use App\Domain\Fleet\VehicleType;
 use App\Domain\Quotes\Quote;
 use App\Domain\Quotes\QuotePermissions;
 use App\Domain\Quotes\QuoteRevision;
 use App\Domain\Quotes\QuoteStatusHistory;
 use App\Domain\Quotes\ReviewQuote;
+use App\Domain\Quotes\VerifyAcceptedQuoteInventory;
 use App\Http\Resources\QuotationView;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -42,7 +44,7 @@ final class QuoteController extends Controller
         $this->authorizeView($request);
         $model = Quote::whereNull('simulation_price_book_id')->where('public_id', $quote)->firstOrFail();
 
-        return Inertia::render('company/quotes/Show', ['quote' => $view->make($model, true), 'history' => QuoteStatusHistory::where('quote_id', $model->id)->orderByDesc('id')->paginate(20, ['*'], 'history_page')->withQueryString()->through(fn ($row) => $row->only('from_status', 'to_status', 'created_at')), 'revisions' => QuoteRevision::where('quote_id', $model->id)->with(['lines', 'inventory', 'stops'])->orderByDesc('number')->paginate(10, ['*'], 'revisions_page')->withQueryString()->through(fn ($revision) => $view->revision($revision, true))]);
+        return Inertia::render('company/quotes/Show', ['quote' => $view->make($model, true), 'vehicleTypes' => VehicleType::where('active', true)->orderBy('name')->get(['key', 'name']), 'history' => QuoteStatusHistory::where('quote_id', $model->id)->orderByDesc('id')->paginate(20, ['*'], 'history_page')->withQueryString()->through(fn ($row) => $row->only('from_status', 'to_status', 'created_at')), 'revisions' => QuoteRevision::where('quote_id', $model->id)->with(['lines', 'inventory', 'stops'])->orderByDesc('number')->paginate(10, ['*'], 'revisions_page')->withQueryString()->through(fn ($revision) => $view->revision($revision, true))]);
     }
 
     public function review(Request $request, string $company, string $quote, ReviewQuote $action): RedirectResponse
@@ -51,5 +53,13 @@ final class QuoteController extends Controller
         $action->execute(Quote::where('public_id', $quote)->firstOrFail(), $request->all(), $request->user()->id);
 
         return back()->with('success', 'Quotation review recorded.');
+    }
+
+    public function verifyInventory(Request $request, string $company, string $quote, VerifyAcceptedQuoteInventory $action): RedirectResponse
+    {
+        $model = Quote::whereNull('simulation_price_book_id')->where('public_id', $quote)->firstOrFail();
+        $action->execute($model, $request->all(), $request->user()->id);
+
+        return back()->with('success', 'Inventory measurements verified. The customer can refresh the booking page and search availability again.');
     }
 }

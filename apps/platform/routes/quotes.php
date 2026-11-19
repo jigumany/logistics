@@ -32,6 +32,7 @@ Route::prefix('/c/{company}')->middleware(['auth', 'tenant'])->group(function ()
     Route::get('/quotes', [QuoteController::class, 'index']);
     Route::get('/quotes/{quote}', [QuoteController::class, 'show']);
     Route::post('/quotes/{quote}/review', [QuoteController::class, 'review']);
+    Route::post('/quotes/{quote}/inventory-verification', [QuoteController::class, 'verifyInventory'])->middleware('throttle:booking-mutation');
     Route::get('/quotes/{quote}/pdf', [QuoteDocumentController::class, 'internal']);
     Route::get('/inventory', [CatalogueController::class, 'index']);
     Route::get('/inventory/create', [CatalogueController::class, 'edit']);

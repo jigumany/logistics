@@ -40,9 +40,24 @@ export interface InternalRevision extends QuoteRevisionData {
         manual_override?: boolean;
         reason?: string;
         metrics?: Record<string, string | number | null>;
+        configuration?: BookConfiguration;
     };
 }
 export interface AdminQuote extends QuotationData {
+    inventory_verification: {
+        revision_public_id: string;
+        vehicle_type_key?: string;
+        crew_size?: number;
+        notes: string;
+        items: {
+            public_id: string;
+            name: string;
+            length_cm: string;
+            width_cm: string;
+            height_cm: string;
+            weight_kg: string;
+        }[];
+    } | null;
     route?: {
         provider: string;
         status: string;

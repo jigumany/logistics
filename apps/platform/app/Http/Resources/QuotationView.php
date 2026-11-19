@@ -10,6 +10,7 @@ use App\Domain\Quotes\QuoteAttachment;
 use App\Domain\Quotes\QuoteReviewDecision;
 use App\Domain\Quotes\QuoteRevision;
 use App\Domain\Routing\RouteCalculation;
+use App\Domain\Tenancy\AuditEntry;
 use App\Domain\Tenancy\TenantContext;
 use Illuminate\Support\Facades\URL;
 
@@ -25,6 +26,13 @@ final class QuotationView
         $data['information_request'] = $request?->reason;
         if ($internal) {
             $data['input'] = $quote->draft_input;
+            $verification = AuditEntry::where('action', 'quote.inventory.verify')
+                ->where('subject_public_id', $quote->public_id)
+                ->orderByDesc('id')
+                ->first()?->details;
+            $data['inventory_verification'] = ($verification['revision_public_id'] ?? null) === $revision?->public_id
+                ? $verification
+                : null;
             $route = $revision?->route_calculation_id ? RouteCalculation::whereKey($revision->route_calculation_id)->first() : null;
             $data['route'] = $route && (! $route->retain_until || $route->retain_until->isFuture()) ? $route->only('provider', 'status', 'failure_code', 'customer_metres', 'depot_metres', 'return_metres', 'duration_seconds') : null;
             $data['reviews'] = QuoteReviewDecision::where('quote_id', $quote->id)->orderByDesc('id')->paginate(20, ['*'], 'reviews_page')->withQueryString()->through(fn ($decision) => $decision->only('public_id', 'decision', 'reason', 'adjustment', 'created_at'));

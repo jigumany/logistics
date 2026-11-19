@@ -4,6 +4,7 @@ namespace App\Domain\Tenancy;
 
 use Illuminate\Database\Eloquent\Model;
 
+/** @property array<string,mixed>|null $details */
 class AuditEntry extends Model
 {
     use BelongsToTenant;

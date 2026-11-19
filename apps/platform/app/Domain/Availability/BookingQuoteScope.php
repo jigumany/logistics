@@ -6,6 +6,7 @@ use App\Domain\Bookings\BookingConflict;
 use App\Domain\Inventory\InventoryCalculator;
 use App\Domain\Quotes\Quote;
 use App\Domain\Quotes\QuoteRevision;
+use App\Domain\Tenancy\AuditEntry;
 use Carbon\CarbonImmutable;
 
 final class BookingQuoteScope
@@ -17,21 +18,36 @@ final class BookingQuoteScope
         if ($quote->status !== 'accepted' || ! $quote->accepted_at || ! $quote->customer_id || $quote->simulation_price_book_id !== null || ! $revision || ! $revision->sealed_at || $revision->expires_at->isPast() || $revision->total_minor === null || ! in_array($revision->approval, ['automatic', 'approved'], true)) {
             throw BookingConflict::because('accepted_quote_required', 'A current, accepted and unexpired quotation is required.');
         }
-        $items = $revision->inventory->map(fn ($item) => $item->toArray())->all();
+        $verification = AuditEntry::where('action', 'quote.inventory.verify')
+            ->where('subject_public_id', $quote->public_id)
+            ->orderByDesc('id')
+            ->first()?->details;
+        $verifiedItems = ($verification['revision_public_id'] ?? null) === $revision->public_id
+            ? collect($verification['items'] ?? [])->keyBy('public_id')
+            : collect();
+        $items = $revision->inventory->map(function ($item) use ($verifiedItems): array {
+            $values = $verifiedItems->get($item->public_id);
+            if (! $values) {
+                return $item->toArray();
+            }
+
+            return [...$item->toArray(), ...array_intersect_key($values, array_flip(['length_cm', 'width_cm', 'height_cm', 'weight_kg'])), 'measurement_source' => 'measured', 'provenance' => ['dimensions' => 'measured', 'weight' => 'measured']];
+        })->all();
         $inventory = app(InventoryCalculator::class)->calculate($items, $revision->inventory_summary['safety_margin_bps'] ?? 0);
         if ($inventory['unknown_weight_quantity'] || $inventory['unknown_volume_quantity'] || count(array_filter($items, fn ($item) => $item['length_cm'] === null))) {
             throw BookingConflict::because('load_verification_required', 'Confirm all item dimensions and weights with operations before reserving resources.');
         }
-        $type = $revision->pricing_snapshot['screened_vehicle_type'] ?? collect($revision->suitability)->firstWhere('technically_fits', true)['vehicle_type_key'] ?? null;
+        $type = $revision->pricing_snapshot['screened_vehicle_type'] ?? $verification['vehicle_type_key'] ?? collect($revision->suitability)->firstWhere('technically_fits', true)['vehicle_type_key'] ?? null;
         if (! $type) {
             throw BookingConflict::because('vehicle_requirement_unknown', 'Operations must confirm the required vehicle class.');
         }
         $config = $revision->pricing_snapshot['configuration'] ?? [];
-        if (! isset($config['crew_size'])) {
+        $crewSize = $config['crew_size'] ?? $verification['crew_size'] ?? null;
+        if ($crewSize === null) {
             throw BookingConflict::because('crew_requirement_unknown', 'Operations must confirm the required crew.');
         }
 
-        return ['quote' => $quote, 'revision' => $revision, 'inventory' => $inventory, 'vehicle_type_key' => $type, 'movers' => max(0, (int) $config['crew_size'] - 1)];
+        return ['quote' => $quote, 'revision' => $revision, 'inventory' => $inventory, 'vehicle_type_key' => $type, 'crew_size' => (int) $crewSize, 'movers' => max(0, (int) $crewSize - 1)];
     }
 
     public function priceNeutral(QuoteRevision $revision, CarbonImmutable $start, string $timezone): void
@@ -48,7 +64,7 @@ final class BookingQuoteScope
             $changed = $changed || $outside($revision->input['preferred_time'] ?? null) !== $outside($new->format('H:i'));
         }
         if ($changed) {
-            throw BookingConflict::because('quote_amendment_required','This time changes a priced condition. Operations must issue and obtain acceptance of an amended quotation first.');
+            throw BookingConflict::because('quote_amendment_required', 'This time changes a priced condition. Operations must issue and obtain acceptance of an amended quotation first.');
         }
     }
 }
